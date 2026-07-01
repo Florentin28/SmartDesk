@@ -9,3 +9,4 @@ namespace SmartDesk.Models
         public DateTime UpdatedAt { get; set; }
         public string Status { get; set; } = "New"; // Default status
     }
+}
