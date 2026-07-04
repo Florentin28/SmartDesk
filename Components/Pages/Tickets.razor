@@ -1,0 +1,84 @@
+@* Nom de la page *@
+@page "/tickets" 
+
+@* Met a jour automatiquement la page *@
+@rendermode InteractiveServer 
+
+@using SmartDesk.Models @* Lie la page Models pour aller chercher la classe Ticket *@
+@using SmartDesk.Data @* Lie la page Data pour accéder à AppDbContext *@
+@using Microsoft.EntityFrameworkCore @* Importe Entity Framework Core pour utilier des requete de BDD *@
+
+@* Injecte le contexte de base de données *@
+@inject AppDbContext Context 
+
+<h3>SmartDesk Tickets</h3>
+
+<!-- Formulaire pour créer un ticket -->
+<div>
+    <h5>Create a New Ticket</h5> 
+    <input @bind="newTitle" placeholder="Title" />
+    <input @bind="newDescription" placeholder="Description" />
+    <button @onclick="CreateTicket">Add Ticket</button>
+</div>
+
+<hr />
+
+<!-- Liste des tickets existants -->
+<h5>All Tickets</h5>
+@if (tickets == null) // Si la liste n'est pas encore chargée, on affiche un message de chargement
+{
+    <p>Loading...</p>
+}
+else if (!tickets.Any()) // Si la liste est vide, on affiche un message
+{
+    <p>No tickets found in the database.</p> 
+}
+else
+{
+    <ul>
+        @foreach (var ticket in tickets) // On parcourt la liste des tickets et on les affiche
+        {
+            <li><strong>@ticket.Title</strong> - @ticket.Status (@ticket.CreatedAt.ToLocalTime())<br />@ticket.Description</li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Ticket>? tickets; // Liste des tickets récupérés depuis la BDD
+    private string newTitle = string.Empty; // Titre du nouveau ticket à créer
+    private string newDescription = string.Empty; // Description du nouveau ticket à créer
+
+    // Cette méthode se lance automatiquement quand la page s'affiche à l'écran
+    protected override async Task OnInitializedAsync() // Méthode pour actualiser la liste à l'ouverture de la page
+    {
+        await LoadTickets(); // appelle la méthode LoadTickets pour récupérer les tickets depuis la BDD
+    }
+
+    // Va chercher les tickets dans la BDD
+    private async Task LoadTickets()
+    {
+        tickets = await Context.Tickets.ToListAsync(); // Va chercher le contenu de la table tickets et les transforme en liste pour l'afficher à l'écran
+    }
+
+    // Crée un ticket et l'enregistre dans la BDD
+    private async Task CreateTicket()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return; // Sécurité si le champ est vide on n'ajout pas de ticket vide
+
+        var ticket = new Ticket // On crée un ticket avec les informations du formulaire
+        {
+            Title = newTitle,
+            Description = newDescription
+        };
+
+        Context.Tickets.Add(ticket); // On dépose l'objet dans la file d'attente de la BDD (mais il n'est pas encore enregistré physiquement)
+        await Context.SaveChangesAsync(); // Il l'enregistre physiquement dans la BDD
+
+        // On vide les champs du formulaire après l'envoi
+        newTitle = string.Empty;
+        newDescription = string.Empty;
+
+        // On rafraîchit la liste à l'écran
+        await LoadTickets();
+    }
+}
