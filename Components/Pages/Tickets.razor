@@ -4,45 +4,109 @@
 @* Met a jour automatiquement la page *@
 @rendermode InteractiveServer 
 
-@using SmartDesk.Models @* Lie la page Models pour aller chercher la classe Ticket *@
-@using SmartDesk.Data @* Lie la page Data pour accéder à AppDbContext *@
-@using Microsoft.EntityFrameworkCore @* Importe Entity Framework Core pour utilier des requete de BDD *@
+@using SmartDesk.Models 
+@using SmartDesk.Data 
+@using Microsoft.EntityFrameworkCore
 
-@* Injecte le contexte de base de données *@
-@inject AppDbContext Context 
+@* Inject the database context *@
+@inject AppDbContext Context
 
-<h3>SmartDesk Tickets</h3>
+<div class="container mt-4">
+    <!-- En-tête principal -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
+        <span class="badge bg-secondary fs-6">
+            @(tickets?.Count ?? 0) Ticket(s)
+        </span>
+    </div>
 
-<!-- Formulaire pour créer un ticket (Interface Employé) -->
-<div>
-    <h5>Create a New Ticket</h5> 
-    <input @bind="newTitle" placeholder="Title" />
-    <input @bind="newDescription" placeholder="Description" />
-    <button @onclick="CreateTicket">Add Ticket</button>
+    <div class="row g-4">
+        <!-- COLONNE GAUCHE : Formulaire de création -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold py-3">
+                    Create a New Ticket
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Problem Title</label>
+                        <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Detailed Description</label>
+                        <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
+                    </div>
+                    <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
+                        Submit Ticket
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLONNE DROITE : Liste des tickets -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light fw-bold py-3">
+                    All Active Tickets
+                </div>
+                <div class="card-body p-0">
+                    @if (tickets == null)
+                    {
+                        <div class="p-4 text-center">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-muted mt-2 mb-0">Loading data...</p>
+                        </div>
+                    }
+                    else if (!tickets.Any())
+                    {
+                        <div class="p-5 text-center text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            <span>No tickets found in the database. Everything is running smoothly!</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 10%">ID</th>
+                                        <th style="width: 45%">Ticket Details</th>
+                                        <th style="width: 20%">Status</th>
+                                        <th style="width: 25%">Created At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var ticket in tickets)
+                                    {
+                                        <tr>
+                                            <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
+                                            <td>
+                                                <div class="fw-bold text-dark">@ticket.Title</div>
+                                                <small class="text-muted text-wrap d-block" style="max-width: 300px;">@ticket.Description</small>
+                                            </td>
+                                            <td>
+                                                @* Petit badge dynamique selon le statut *@
+                                                <span class="badge @(ticket.Status == "New" ? "bg-info text-dark" : "bg-warning text-dark") fw-bold px-2 py-1">
+                                                    @ticket.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @ticket.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<hr />
-
-<!-- Liste des tickets existants -->
-<h5>All Tickets</h5>
-@if (tickets == null) // Si la liste n'est pas encore chargée, on affiche un message de chargement
-{
-    <p>Loading...</p>
-}
-else if (!tickets.Any()) // Si la liste est vide, on affiche un message
-{
-    <p>No tickets found in the database.</p> 
-}
-else
-{
-    <ul>
-        @foreach (var ticket in tickets) // On parcourt la liste des tickets et on les affiche
-        {
-            @* AJOUT : On affiche l'ID auto-généré (#1, #2...) devant le titre *@
-            <li><strong>#@ticket.Id - @ticket.Title</strong> - @ticket.Status (@ticket.CreatedAt.ToLocalTime())<br />@ticket.Description</li>
-        }
-    </ul>
-}
 
 @code {
     private List<Ticket>? tickets; // Liste des tickets récupérés depuis la BDD
