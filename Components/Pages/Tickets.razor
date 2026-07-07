@@ -1,7 +1,4 @@
-@* Nom de la page *@
 @page "/tickets" 
-
-@* Met a jour automatiquement la page *@
 @rendermode InteractiveServer 
 
 @using SmartDesk.Models 
@@ -10,53 +7,63 @@
 @inject AppDbContext Context 
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
-        <span class="badge bg-secondary fs-6">
-            @(tickets?.Count ?? 0) Ticket(s)
-        </span>
+    <div class="d-flex justify-content-between align-items-center mb-4 bg-light p-3 rounded shadow-sm">
+        <div>
+            <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
+            <small class="text-muted">Current Role: <strong>@(isTechnician ? "Technician" : "Employee")</strong></small>
+        </div>
+        
+        <div class="form-check form-switch bg-white p-2 px-4 rounded border">
+            <input class="form-check-input" type="checkbox" @bind="isTechnician" id="roleToggle">
+            <label class="form-check-input-label fw-bold ms-2" for="roleToggle">Simulate Technician View</label>
+        </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white fw-bold py-3">
-                    Create a New Ticket
-                </div>
-                <div class="card-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Problem Title</label>
-                        <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
+        @* CONDITION VISUELLE : Si Employé, on affiche le formulaire à gauche (col-lg-4) *@
+        @if (!isTechnician)
+        {
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white fw-bold py-3">
+                        Create a New Ticket
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Detailed Description</label>
-                        <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Problem Title</label>
+                            <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Detailed Description</label>
+                            <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
+                        </div>
+                        <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
+                            Submit Ticket
+                        </button>
                     </div>
-                    <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
-                        Submit Ticket
-                    </button>
                 </div>
             </div>
-        </div>
+        }
 
-        <div class="col-lg-8">
+        @* CONDITION DE GRILLE : Si Technicien, la liste prend tout l'écran (col-12), sinon elle prend le reste (col-lg-8) *@
+        <div class="@(isTechnician ? "col-12" : "col-lg-8")">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-light fw-bold py-3">
-                    All Active Tickets
+                <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                    <span>@(isTechnician ? "Technician Console: All Tickets" : "Your Submitted Tickets")</span>
+                    <span class="badge bg-secondary">@(tickets?.Count ?? 0)</span>
                 </div>
                 <div class="card-body p-0">
                     @if (tickets == null)
                     {
                         <div class="p-4 text-center">
                             <div class="spinner-border text-primary" role="status"></div>
-                            <p class="text-muted mt-2 mb-0">Loading data...</p>
                         </div>
                     }
                     else if (!tickets.Any())
                     {
                         <div class="p-5 text-center text-muted">
                             <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                            <span>No tickets found in the database. Everything is running smoothly!</span>
+                            <span>No tickets found.</span>
                         </div>
                     }
                     else
@@ -66,9 +73,13 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 10%">ID</th>
-                                        <th style="width: 40%">Ticket Details</th>
+                                        <th style="width: 50%">Ticket Details</th>
                                         <th style="width: 20%">Status</th>
-                                        <th style="width: 30%">Actions</th>
+                                        @* Le technicien a une colonne Actions en plus *@
+                                        @if (isTechnician)
+                                        {
+                                            <th style="width: 20%">Actions</th>
+                                        }
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -78,30 +89,33 @@
                                             <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
                                             <td>
                                                 <div class="fw-bold text-dark">@ticket.Title</div>
-                                                <small class="text-muted d-block text-wrap" style="max-width: 280px;">@ticket.Description</small>
+                                                <small class="text-muted d-block text-wrap">@ticket.Description</small>
                                                 <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
                                                     <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")
                                                 </small>
                                             </td>
                                             <td>
-                                                @* MODIFICATION : Couleur dynamique du badge *@
                                                 <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
                                                     @ticket.Status
                                                 </span>
                                             </td>
-                                            <td>
-                                                @* AJOUT : Bouton d'action pour le Technicien *@
-                                                @if (ticket.Status != "Resolved")
-                                                {
-                                                    <button @onclick="() => AdvanceStatus(ticket)" class="btn btn-sm btn-outline-secondary fw-semibold">
-                                                        <i class="bi bi-arrow-right-short"></i> Next Status
-                                                    </button>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Closed</span>
-                                                }
-                                            </td>
+                                            
+                                            @* CONDITION DU BOUTON : Seul le technicien voit et clique *@
+                                            @if (isTechnician)
+                                            {
+                                                <td>
+                                                    @if (ticket.Status != "Resolved")
+                                                    {
+                                                        <button @onclick="() => AdvanceStatus(ticket)" class="btn btn-sm btn-outline-primary fw-semibold">
+                                                            Next Status <i class="bi bi-arrow-right"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Closed</span>
+                                                    }
+                                                </td>
+                                            }
                                         </tr>
                                     }
                                 </tbody>
@@ -118,66 +132,40 @@
     private List<Ticket>? tickets; 
     private string newTitle = string.Empty; 
     private string newDescription = string.Empty; 
+    
+    // AJOUT : La variable booléenne qui pilote l'affichage du rôle (Faux = Employé par défaut)
+    private bool isTechnician = false; 
 
-    protected override async Task OnInitializedAsync() 
-    {
-        await LoadTickets(); 
-    }
-
-    private async Task LoadTickets()
-    {
-        tickets = await Context.Tickets.ToListAsync(); 
-    }
+    protected override async Task OnInitializedAsync() => await LoadTickets(); 
+    private async Task LoadTickets() => tickets = await Context.Tickets.ToListAsync(); 
 
     private async Task CreateTicket()
     {
         if (string.IsNullOrWhiteSpace(newTitle)) return; 
 
-        var ticket = new Ticket 
-        {
-            Title = newTitle,
-            Description = newDescription,
-            Status = "New" // On force le statut de départ
-        };
-
+        var ticket = new Ticket { Title = newTitle, Description = newDescription };
         Context.Tickets.Add(ticket); 
         await Context.SaveChangesAsync(); 
 
         newTitle = string.Empty;
         newDescription = string.Empty;
-
         await LoadTickets();
     }
 
-    // AJOUT : La logique métier du technicien (Changement de statut)
     private async Task AdvanceStatus(Ticket ticket)
     {
-        // Cycle de vie du ticket : New -> In Progress -> Resolved
-        if (ticket.Status == "New")
-        {
-            ticket.Status = "In Progress";
-        }
-        else if (ticket.Status == "In Progress")
-        {
-            ticket.Status = "Resolved";
-        }
+        if (ticket.Status == "New") ticket.Status = "In Progress";
+        else if (ticket.Status == "In Progress") ticket.Status = "Resolved";
 
-        // On sauvegarde le changement d'état directement dans le fichier smartdesk.db
         await Context.SaveChangesAsync();
-        
-        // On rafraîchit l'écran
         await LoadTickets();
     }
 
-    // AJOUT : Choix de la couleur du badge Bootstrap selon le texte du statut
-    private string GetStatusBadgeClass(string status)
+    private string GetStatusBadgeClass(string status) => status switch
     {
-        return status switch
-        {
-            "New" => "bg-info text-dark",
-            "In Progress" => "bg-warning text-dark",
-            "Resolved" => "bg-success text-white",
-            _ => "bg-secondary text-white"
-        };
-    }
+        "New" => "bg-info text-dark",
+        "In Progress" => "bg-warning text-dark",
+        "Resolved" => "bg-success text-white",
+        _ => "bg-secondary text-white"
+    };
 }
