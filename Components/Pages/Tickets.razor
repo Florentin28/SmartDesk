@@ -6,13 +6,10 @@
 
 @using SmartDesk.Models 
 @using SmartDesk.Data 
-@using Microsoft.EntityFrameworkCore
-
-@* Inject the database context *@
-@inject AppDbContext Context
+@using Microsoft.EntityFrameworkCore 
+@inject AppDbContext Context 
 
 <div class="container mt-4">
-    <!-- En-tête principal -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
         <span class="badge bg-secondary fs-6">
@@ -21,7 +18,6 @@
     </div>
 
     <div class="row g-4">
-        <!-- COLONNE GAUCHE : Formulaire de création -->
         <div class="col-lg-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white fw-bold py-3">
@@ -43,7 +39,6 @@
             </div>
         </div>
 
-        <!-- COLONNE DROITE : Liste des tickets -->
         <div class="col-lg-8">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-light fw-bold py-3">
@@ -71,9 +66,9 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 10%">ID</th>
-                                        <th style="width: 45%">Ticket Details</th>
+                                        <th style="width: 40%">Ticket Details</th>
                                         <th style="width: 20%">Status</th>
-                                        <th style="width: 25%">Created At</th>
+                                        <th style="width: 30%">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -83,18 +78,29 @@
                                             <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
                                             <td>
                                                 <div class="fw-bold text-dark">@ticket.Title</div>
-                                                <small class="text-muted text-wrap d-block" style="max-width: 300px;">@ticket.Description</small>
+                                                <small class="text-muted d-block text-wrap" style="max-width: 280px;">@ticket.Description</small>
+                                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")
+                                                </small>
                                             </td>
                                             <td>
-                                                @* Petit badge dynamique selon le statut *@
-                                                <span class="badge @(ticket.Status == "New" ? "bg-info text-dark" : "bg-warning text-dark") fw-bold px-2 py-1">
+                                                @* MODIFICATION : Couleur dynamique du badge *@
+                                                <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
                                                     @ticket.Status
                                                 </span>
                                             </td>
                                             <td>
-                                                <small class="text-muted">
-                                                    @ticket.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                                </small>
+                                                @* AJOUT : Bouton d'action pour le Technicien *@
+                                                @if (ticket.Status != "Resolved")
+                                                {
+                                                    <button @onclick="() => AdvanceStatus(ticket)" class="btn btn-sm btn-outline-secondary fw-semibold">
+                                                        <i class="bi bi-arrow-right-short"></i> Next Status
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Closed</span>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -109,42 +115,69 @@
 </div>
 
 @code {
-    private List<Ticket>? tickets; // Liste des tickets récupérés depuis la BDD
-    private string newTitle = string.Empty; // Titre du nouveau ticket à créer
-    private string newDescription = string.Empty; // Description du nouveau ticket à créer
+    private List<Ticket>? tickets; 
+    private string newTitle = string.Empty; 
+    private string newDescription = string.Empty; 
 
-    // Cette méthode se lance automatiquement quand la page s'affiche à l'écran
-    protected override async Task OnInitializedAsync() // Méthode pour actualiser la liste à l'ouverture de la page
+    protected override async Task OnInitializedAsync() 
     {
-        await LoadTickets(); // appelle la méthode LoadTickets pour récupérer les tickets depuis la BDD
+        await LoadTickets(); 
     }
 
-    // Va chercher les tickets dans la BDD
     private async Task LoadTickets()
     {
-        tickets = await Context.Tickets.ToListAsync(); // Va chercher le contenu de la table tickets et les transforme en liste pour l'afficher à l'écran
+        tickets = await Context.Tickets.ToListAsync(); 
     }
 
-    // Crée un ticket et l'enregistre dans la BDD
     private async Task CreateTicket()
     {
-        if (string.IsNullOrWhiteSpace(newTitle)) return; // Sécurité si le champ est vide on n'ajout pas de ticket vide
+        if (string.IsNullOrWhiteSpace(newTitle)) return; 
 
-        // L'Id, le Status ("New") et la Date sont générés automatiquement par le système
         var ticket = new Ticket 
         {
             Title = newTitle,
-            Description = newDescription
+            Description = newDescription,
+            Status = "New" // On force le statut de départ
         };
 
-        Context.Tickets.Add(ticket); // On dépose l'objet dans la file d'attente de la BDD
-        await Context.SaveChangesAsync(); // Il l'enregistre physiquement dans la BDD (l'ID est généré ici)
+        Context.Tickets.Add(ticket); 
+        await Context.SaveChangesAsync(); 
 
-        // On vide les champs du formulaire après l'envoi
         newTitle = string.Empty;
         newDescription = string.Empty;
 
-        // On rafraîchit la liste à l'écran
         await LoadTickets();
+    }
+
+    // AJOUT : La logique métier du technicien (Changement de statut)
+    private async Task AdvanceStatus(Ticket ticket)
+    {
+        // Cycle de vie du ticket : New -> In Progress -> Resolved
+        if (ticket.Status == "New")
+        {
+            ticket.Status = "In Progress";
+        }
+        else if (ticket.Status == "In Progress")
+        {
+            ticket.Status = "Resolved";
+        }
+
+        // On sauvegarde le changement d'état directement dans le fichier smartdesk.db
+        await Context.SaveChangesAsync();
+        
+        // On rafraîchit l'écran
+        await LoadTickets();
+    }
+
+    // AJOUT : Choix de la couleur du badge Bootstrap selon le texte du statut
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "New" => "bg-info text-dark",
+            "In Progress" => "bg-warning text-dark",
+            "Resolved" => "bg-success text-white",
+            _ => "bg-secondary text-white"
+        };
     }
 }
