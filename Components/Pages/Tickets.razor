@@ -20,6 +20,7 @@
     }
     else
     {
+        <!-- En-tête -->
         <div class="d-flex justify-content-between align-items-center mb-4 bg-light p-3 rounded shadow-sm">
             <div>
                 <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
@@ -34,6 +35,7 @@
         <div class="row g-4">
             @if (!Auth.IsTechnician)
             {
+                <!-- INTERFACE EMPLOYÉ : Formulaire de création -->
                 <div class="col-lg-4">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-primary text-white fw-bold py-3">
@@ -56,7 +58,7 @@
                 </div>
             }
 
-            @* GRILLE EN FONCTION DU RÔLE *@
+            @* GRILLE DYNAMIQUE *@
             <div class="@(Auth.IsTechnician ? "col-12" : "col-lg-8")">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
@@ -67,6 +69,7 @@
                     <div class="card-body p-0">
                         @if (Auth.IsTechnician)
                         {
+                            <!-- Barre de filtrage par Statut -->
                             <div class="bg-light p-3 border-bottom d-flex gap-2">
                                 <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>All</button>
                                 <button @onclick='() => ChangeFilter("New")' class='btn btn-sm @(selectedFilter == "New" ? "btn-info" : "btn-outline-info") fw-semibold'>New</button>
@@ -94,12 +97,13 @@
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 10%">ID</th>
-                                            <th style="width: 50%">Ticket Details</th>
-                                            <th style="width: 20%">Status</th>
+                                            <th style="width: 8%">ID</th>
+                                            <th style="width: 42%">Ticket Details</th>
+                                            <th style="width: 15%">Priority</th>
+                                            <th style="width: 15%">Status</th>
                                             @if (Auth.IsTechnician)
                                             {
-                                                <th style="width: 20%">Update Status</th>
+                                                <th style="width: 20%">Manage Ticket</th>
                                             }
                                         </tr>
                                     </thead>
@@ -116,22 +120,40 @@
                                                     </small>
                                                 </td>
                                                 <td>
+                                                    @* Affichage visuel de la priorité *@
+                                                    <span class="badge @GetPriorityBadgeClass(ticket.Priority) fw-bold">
+                                                        <i class="bi bi-flag-fill"></i> @ticket.Priority
+                                                    </span>
+                                                </td>
+                                                <td>
                                                     <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
                                                         @ticket.Status
                                                     </span>
                                                 </td>
                                                 
-                                                @* CHANGEMENT ICI : Le menu déroulant pour le Technicien *@
                                                 @if (Auth.IsTechnician)
                                                 {
                                                     <td>
-                                                        <select value="@ticket.Status" 
-                                                                @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" 
-                                                                class="form-select form-select-sm fw-semibold">
-                                                            <option value="New">New</option>
-                                                            <option value="In Progress">In Progress</option>
-                                                            <option value="Resolved">Resolved</option>
-                                                        </select>
+                                                        <div class="d-flex flex-column gap-1">
+                                                            <!-- Menu Statut -->
+                                                            <div class="input-group input-group-sm">
+                                                                <span class="input-group-text bg-white" title="Status"><i class="bi bi-gear-fill"></i></span>
+                                                                <select value="@ticket.Status" @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
+                                                                    <option value="New">New</option>
+                                                                    <option value="In Progress">In Progress</option>
+                                                                    <option value="Resolved">Resolved</option>
+                                                                </select>
+                                                            </div>
+                                                            <!-- Menu Priorité -->
+                                                            <div class="input-group input-group-sm">
+                                                                <span class="input-group-text bg-white" title="Priority"><i class="bi bi-flag-fill"></i></span>
+                                                                <select value="@ticket.Priority" @onchange="(e) => UpdateTicketPriority(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
+                                                                    <option value="Low">Low</option>
+                                                                    <option value="Medium">Medium</option>
+                                                                    <option value="High">High</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                 }
                                             </tr>
@@ -187,6 +209,7 @@
     {
         if (string.IsNullOrWhiteSpace(newTitle)) return; 
 
+        // La priorité par défaut est gérée automatiquement à "Medium" par le modèle
         var ticket = new Ticket { Title = newTitle, Description = newDescription };
         Context.Tickets.Add(ticket); 
         await Context.SaveChangesAsync(); 
@@ -196,18 +219,20 @@
         await LoadTickets();
     }
 
-    @* NOUVELLE MÉTHODE : Choix libre du statut *@
     private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
     {
         if (string.IsNullOrEmpty(nextStatus)) return;
-
-        // On applique le statut choisi dans le menu déroulant
         ticket.Status = nextStatus;
-
-        // Sauvegarde immédiate dans smartdesk.db
         await Context.SaveChangesAsync();
-        
-        // Rafraîchissement
+        await LoadTickets(); 
+    }
+
+    // AJOUT : Méthode pour mettre à jour la priorité en BDD
+    private async Task UpdateTicketPriority(Ticket ticket, string? nextPriority)
+    {
+        if (string.IsNullOrEmpty(nextPriority)) return;
+        ticket.Priority = nextPriority;
+        await Context.SaveChangesAsync();
         await LoadTickets(); 
     }
 
@@ -222,6 +247,15 @@
         "New" => "bg-info text-dark",
         "In Progress" => "bg-warning text-dark",
         "Resolved" => "bg-success text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    // AJOUT : Couleurs de drapeaux/badges selon l'urgence
+    private string GetPriorityBadgeClass(string priority) => priority switch
+    {
+        "Low" => "bg-light text-muted border",
+        "Medium" => "bg-secondary text-white",
+        "High" => "bg-danger text-white",
         _ => "bg-secondary text-white"
     };
 }
