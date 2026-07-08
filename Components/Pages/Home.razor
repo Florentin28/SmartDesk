@@ -1,9 +1,72 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@inject SmartDesk.Services.AuthService Auth
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Login - SmartDesk</PageTitle>
 
-<title>SmartDesk</title>
-<h1 class="text-center">Bienvenue sur SmartDesk</h1>
-<a href="/tickets" class="btn btn-primary btn-lg d-block mx-auto mt-4" style="width: 200px;">
-    <i class="bi bi-ticket-perforated"></i> Accéder aux Tickets
-</a>
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+        <div class="card-header bg-primary text-white text-center py-4 rounded-top">
+            <h3 class="m-0 fw-bold"><i class="bi bi-shield-lock"></i> SmartDesk Login</h3>
+        </div>
+        <div class="card-body p-4">
+            
+            @if (Auth.IsLoggedIn)
+            {
+                <div class="text-center">
+                    <p class="alert alert-success">You are logged in as <strong>@Auth.CurrentEmail</strong></p>
+                    <a href="tickets" class="btn btn-primary w-100 fw-bold">Go to Dashboard</a>
+                    <button @onclick="HandleLogout" class="btn btn-link text-danger w-100 mt-2">Logout</button>
+                </div>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Corporate Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input @bind="emailInput" type="email" class="form-control" placeholder="name@company.com" />
+                    </div>
+                    <small class="text-muted d-block mt-1">Tip: Use <code>tech@smartdesk.com</code> for Technician view.</small>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger p-2 small">@errorMessage</div>
+                }
+
+                <button @onclick="HandleLogin" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
+                    Sign In <i class="bi bi-box-arrow-in-right"></i>
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string emailInput = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private void HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(emailInput) || !emailInput.Contains("@"))
+        {
+            errorMessage = "Please enter a valid corporate email address.";
+            return;
+        }
+
+        errorMessage = string.Empty;
+        
+        // On connecte l'utilisateur via notre service global
+        Auth.Login(emailInput);
+
+        // Redirection automatique vers la page des tickets
+        Navigation.NavigateTo("tickets");
+    }
+
+    private void HandleLogout()
+    {
+        Auth.Logout();
+    }
+}

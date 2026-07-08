@@ -3,6 +3,8 @@ using SmartDesk.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<SmartDesk.Services.AuthService>();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
