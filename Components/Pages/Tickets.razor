@@ -4,184 +4,183 @@
 @using SmartDesk.Models 
 @using SmartDesk.Data 
 @using Microsoft.EntityFrameworkCore 
+@inject SmartDesk.Services.AuthService Auth
+@inject NavigationManager Navigation
 @inject AppDbContext Context 
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 bg-light p-3 rounded shadow-sm">
-        <div>
-            <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
-            <small class="text-muted">Current Role: <strong>@(isTechnician ? "Technician" : "Employee")</strong></small>
+    
+    @if (!Auth.IsLoggedIn)
+    {
+        <div class="alert alert-danger text-center">
+            <h5><i class="bi bi-exclamation-triangle-fill"></i> Access Denied</h5>
+            <p>You must be logged in to view this page.</p>
+            <a href="/" class="btn btn-danger">Go to Login</a>
         </div>
-        
-        <div class="form-check form-switch bg-white p-2 px-4 rounded border">
-            <input class="form-check-input" type="checkbox" @bind="isTechnician" id="roleToggle">
-            <label class="form-check-input-label fw-bold ms-2" for="roleToggle">Simulate Technician View</label>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        @if (!isTechnician)
-        {
-            <div class="col-lg-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-primary text-white fw-bold py-3">
-                        Create a New Ticket
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Problem Title</label>
-                            <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Detailed Description</label>
-                            <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
-                        </div>
-                        <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
-                            Submit Ticket
-                        </button>
-                    </div>
-                </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4 bg-light p-3 rounded shadow-sm">
+            <div>
+                <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
+                <small class="text-muted">Logged in as: <strong class="text-dark">@Auth.CurrentEmail</strong> (@(Auth.IsTechnician ? "Technician" : "Employee"))</small>
             </div>
-        }
+            
+            <button @onclick="Logout" class="btn btn-outline-danger btn-sm fw-bold">
+                <i class="bi bi-box-arrow-left"></i> Logout
+            </button>
+        </div>
 
-        @* COLONNE DROITE : Tableau des tickets *@
-        <div class="@(isTechnician ? "col-12" : "col-lg-8")">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                    <span>@(isTechnician ? "Technician Console: All Tickets" : "Your Submitted Tickets")</span>
-                    <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) displayed</span>
+        <div class="row g-4">
+            @if (!Auth.IsTechnician)
+            {
+                <div class="col-lg-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-primary text-white fw-bold py-3">
+                            Create a New Ticket
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Problem Title</label>
+                                <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Detailed Description</label>
+                                <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
+                            </div>
+                            <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
+                                Submit Ticket
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="card-body p-0">
-                    @* AJOUT : Barre de filtrage visible UNIQUEMENT pour le Technicien *@
-                    @if (isTechnician)
-                    {
-                        <div class="bg-light p-3 border-bottom d-flex gap-2">
-                            <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>All</button>
-                            <button @onclick='() => ChangeFilter("New")' class='btn btn-sm @(selectedFilter == "New" ? "btn-info" : "btn-outline-info") fw-semibold'>New</button>
-                            <button @onclick='() => ChangeFilter("In Progress")' class='btn btn-sm @(selectedFilter == "In Progress" ? "btn-warning" : "btn-outline-warning") fw-semibold'>In Progress</button>
-                            <button @onclick='() => ChangeFilter("Resolved")' class='btn btn-sm @(selectedFilter == "Resolved" ? "btn-success" : "btn-outline-success") fw-semibold'>Resolved</button>
-                        </div>
-                    }
+            }
 
-                    @if (filteredTickets == null)
-                    {
-                        <div class="p-4 text-center">
-                            <div class="spinner-border text-primary" role="status"></div>
-                        </div>
-                    }
-                    else if (!filteredTickets.Any())
-                    {
-                        <div class="p-5 text-center text-muted">
-                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                            <span>No tickets match this filter.</span>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 10%">ID</th>
-                                        <th style="width: 50%">Ticket Details</th>
-                                        <th style="width: 20%">Status</th>
-                                        @if (isTechnician)
-                                        {
-                                            <th style="width: 20%">Actions</th>
-                                        }
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @* MODIFICATION : On boucle maintenant sur la liste filtrée *@
-                                    @foreach (var ticket in filteredTickets)
-                                    {
+            @* GRILLE EN FONCTION DU RÔLE *@
+            <div class="@(Auth.IsTechnician ? "col-12" : "col-lg-8")">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                        <span>@(Auth.IsTechnician ? "Technician Console: All Tickets" : "Your Submitted Tickets")</span>
+                        <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) displayed</span>
+                    </div>
+                    
+                    <div class="card-body p-0">
+                        @if (Auth.IsTechnician)
+                        {
+                            <div class="bg-light p-3 border-bottom d-flex gap-2">
+                                <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>All</button>
+                                <button @onclick='() => ChangeFilter("New")' class='btn btn-sm @(selectedFilter == "New" ? "btn-info" : "btn-outline-info") fw-semibold'>New</button>
+                                <button @onclick='() => ChangeFilter("In Progress")' class='btn btn-sm @(selectedFilter == "In Progress" ? "btn-warning" : "btn-outline-warning") fw-semibold'>In Progress</button>
+                                <button @onclick='() => ChangeFilter("Resolved")' class='btn btn-sm @(selectedFilter == "Resolved" ? "btn-success" : "btn-outline-success") fw-semibold'>Resolved</button>
+                            </div>
+                        }
+
+                        @if (filteredTickets == null)
+                        {
+                            <div class="p-4 text-center">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </div>
+                        }
+                        else if (!filteredTickets.Any())
+                        {
+                            <div class="p-5 text-center text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                <span>No tickets match this filter.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
                                         <tr>
-                                            <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
-                                            <td>
-                                                <div class="fw-bold text-dark">@ticket.Title</div>
-                                                <small class="text-muted d-block text-wrap">@ticket.Description</small>
-                                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-                                                    <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
-                                                    @ticket.Status
-                                                </span>
-                                            </td>
-                                            
-                                            @if (isTechnician)
+                                            <th style="width: 10%">ID</th>
+                                            <th style="width: 50%">Ticket Details</th>
+                                            <th style="width: 20%">Status</th>
+                                            @if (Auth.IsTechnician)
                                             {
-                                                <td>
-                                                    @if (ticket.Status != "Resolved")
-                                                    {
-                                                        <button @onclick="() => AdvanceStatus(ticket)" class="btn btn-sm btn-outline-primary fw-semibold">
-                                                            Next Status <i class="bi bi-arrow-right"></i>
-                                                        </button>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Closed</span>
-                                                    }
-                                                </td>
+                                                <th style="width: 20%">Update Status</th>
                                             }
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var ticket in filteredTickets)
+                                        {
+                                            <tr>
+                                                <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
+                                                <td>
+                                                    <div class="fw-bold text-dark">@ticket.Title</div>
+                                                    <small class="text-muted d-block text-wrap">@ticket.Description</small>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                                        <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
+                                                        @ticket.Status
+                                                    </span>
+                                                </td>
+                                                
+                                                @* CHANGEMENT ICI : Le menu déroulant pour le Technicien *@
+                                                @if (Auth.IsTechnician)
+                                                {
+                                                    <td>
+                                                        <select value="@ticket.Status" 
+                                                                @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" 
+                                                                class="form-select form-select-sm fw-semibold">
+                                                            <option value="New">New</option>
+                                                            <option value="In Progress">In Progress</option>
+                                                            <option value="Resolved">Resolved</option>
+                                                        </select>
+                                                    </td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    private List<Ticket>? allTickets; // Stocke TOUS les tickets de la BDD
-    private List<Ticket>? filteredTickets; // Stocke uniquement les tickets à afficher à l'écran
+    private List<Ticket>? allTickets; 
+    private List<Ticket>? filteredTickets; 
     
     private string newTitle = string.Empty; 
     private string newDescription = string.Empty; 
-    private bool isTechnician = false; 
-
-    // AJOUT : Variable pour retenir quel filtre est actif ("All" par défaut)
     private string selectedFilter = "All";
 
     protected override async Task OnInitializedAsync() => await LoadTickets(); 
 
     private async Task LoadTickets()
     {
-        // 1. On va chercher la source brute dans SQLite
         allTickets = await Context.Tickets.ToListAsync(); 
-        
-        // 2. On applique le filtre par défaut ou choisi
         ApplyFilter();
     }
 
-    // AJOUT : La méthode LINQ qui trie la liste en mémoire vive
     private void ApplyFilter()
     {
         if (allTickets == null) return;
 
-        // Si on est en mode Employé, ou qu'on clique sur "All" en mode Tech, on montre tout
-        if (!isTechnician || selectedFilter == "All")
+        if (!Auth.IsTechnician || selectedFilter == "All")
         {
             filteredTickets = allTickets;
         }
         else
         {
-            // Magie de LINQ : On extrait uniquement les tickets dont le Status correspond au bouton cliqué
             filteredTickets = allTickets.Where(t => t.Status == selectedFilter).ToList();
         }
     }
 
-    // AJOUT : Déclenché quand le technicien clique sur un bouton de filtre
     private void ChangeFilter(string filterName)
     {
         selectedFilter = filterName;
-        ApplyFilter(); // On recalcule la liste affichée
+        ApplyFilter();
     }
 
     private async Task CreateTicket()
@@ -197,13 +196,25 @@
         await LoadTickets();
     }
 
-    private async Task AdvanceStatus(Ticket ticket)
+    @* NOUVELLE MÉTHODE : Choix libre du statut *@
+    private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
     {
-        if (ticket.Status == "New") ticket.Status = "In Progress";
-        else if (ticket.Status == "In Progress") ticket.Status = "Resolved";
+        if (string.IsNullOrEmpty(nextStatus)) return;
 
+        // On applique le statut choisi dans le menu déroulant
+        ticket.Status = nextStatus;
+
+        // Sauvegarde immédiate dans smartdesk.db
         await Context.SaveChangesAsync();
-        await LoadTickets(); // Rechargera la BDD et réappliquera le filtre actuel
+        
+        // Rafraîchissement
+        await LoadTickets(); 
+    }
+
+    private void Logout()
+    {
+        Auth.Logout();
+        Navigation.NavigateTo("/");
     }
 
     private string GetStatusBadgeClass(string status) => status switch
@@ -213,5 +224,4 @@
         "Resolved" => "bg-success text-white",
         _ => "bg-secondary text-white"
     };
-    
 }
