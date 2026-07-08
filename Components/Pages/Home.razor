@@ -1,54 +1,195 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using SmartDesk.Data
 @inject SmartDesk.Services.AuthService Auth
+@inject AppDbContext Context
 @inject NavigationManager Navigation
 
-<PageTitle>Login - SmartDesk</PageTitle>
+<PageTitle>Home - SmartDesk</PageTitle>
 
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 75vh;">
-    <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
-        <div class="card-header bg-primary text-white text-center py-4 rounded-top">
-            <h3 class="m-0 fw-bold"><i class="bi bi-shield-lock"></i> SmartDesk Login</h3>
-        </div>
-        <div class="card-body p-4">
-            
-            @if (Auth.IsLoggedIn)
-            {
-                <div class="text-center">
-                    <p class="alert alert-success">You are logged in as <strong>@Auth.CurrentEmail</strong></p>
-                    <a href="tickets" class="btn btn-primary w-100 fw-bold">Go to Dashboard</a>
-                    <button @onclick="HandleLogout" class="btn btn-link text-danger w-100 mt-2">Logout</button>
+<div class="container mt-4">
+    @if (!Auth.IsLoggedIn)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+            <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+                <div class="card-header bg-primary text-white text-center py-4 rounded-top">
+                    <h3 class="m-0 fw-bold"><i class="bi bi-shield-lock"></i> SmartDesk Login</h3>
                 </div>
-            }
-            else
-            {
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Corporate Email Address</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        <input @bind="emailInput" type="email" class="form-control" placeholder="name@company.com" />
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Corporate Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input @bind="emailInput" type="email" class="form-control" placeholder="name@company.com" />
+                        </div>
+                        <small class="text-muted d-block mt-1">Tip: Use <code>tech@smartdesk.com</code> for Technician view.</small>
                     </div>
-                    <small class="text-muted d-block mt-1">Tip: Use <code>tech@smartdesk.com</code> for Technician view.</small>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger p-2 small">@errorMessage</div>
+                    }
+
+                    <button @onclick="HandleLogin" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
+                        Sign In <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
                 </div>
-
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger p-2 small">@errorMessage</div>
-                }
-
-                <button @onclick="HandleLogin" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
-                    Sign In <i class="bi bi-box-arrow-in-right"></i>
-                </button>
-            }
+            </div>
         </div>
-    </div>
+    }
+    else if (Auth.IsTechnician)
+    {
+        <div class="bg-white p-4 rounded shadow-sm mb-4 border-start border-primary border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="fw-bold text-dark m-0">Technician Command Center</h1>
+                    <p class="text-muted m-0">Welcome back, <strong>@Auth.CurrentEmail</strong>. Here is the real-time status of the infrastructure.</p>
+                </div>
+                <button @onclick="HandleLogout" class="btn btn-outline-danger btn-sm fw-bold">
+                    <i class="bi bi-box-arrow-left"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-white text-red h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between p-4">
+                        <div>
+                            <h6 class="text-uppercase fw-bold text-muted small">Total Tickets</h6>
+                            <h2 class="fw-bold m-0 display-6">@totalTickets</h2>
+                        </div>
+                        <i class="bi bi-files fs-1 text-muted"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-info text-dark h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between p-4">
+                        <div>
+                            <h6 class="text-uppercase fw-bold text-dark-50 small">New Requests</h6>
+                            <h2 class="fw-bold m-0 display-6">@newTickets</h2>
+                        </div>
+                        <i class="bi bi-bell-fill fs-1 text-black-50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-warning text-dark h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between p-4">
+                        <div>
+                            <h6 class="text-uppercase fw-bold text-dark-50 small">In Progress</h6>
+                            <h2 class="fw-bold m-0 display-6">@inProgressTickets</h2>
+                        </div>
+                        <i class="bi bi-hourglass-split fs-1 text-black-50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-success text-white h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between p-4">
+                        <div>
+                            <h6 class="text-uppercase fw-bold text-white-50 small">Resolved Tasks</h6>
+                            <h2 class="fw-bold m-0 display-6">@resolvedTickets</h2>
+                        </div>
+                        <i class="bi bi-check-circle-fill fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-light fw-bold py-3">
+                        <i class="bi bi-lightning-charge-fill text-primary"></i> Quick Actions
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column gap-3 justify-content-center">
+                        <a href="tickets" class="btn btn-primary btn-lg p-3 fw-bold shadow-sm">
+                            <i class="bi bi-list-task"></i> Open Incident Queue Menu
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-light fw-bold py-3">
+                        <i class="bi bi-activity text-danger"></i> System Health & Performance
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1 small fw-bold">
+                                <span>Ticket Resolution Rate</span>
+                                <span>@resolutionRate%</span>
+                            </div>
+                            <div class="progress" style="height: 12px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: @resolutionRate%"></div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between border-top pt-2 mt-3 small text-muted">
+                            <span>Database Driver: <strong>SQLite</strong></span>
+                            <span>Status: <strong class="text-success"><i class="bi bi-circle-fill" style="font-size:0.6rem;"></i> Operational</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 p-5 text-center my-5">
+            <i class="bi bi-laptop display-1 text-primary mb-3"></i>
+            <h2 class="fw-bold">Welcome to your SmartDesk Space</h2>
+            <p class="text-muted px-md-5">Need technical assistance? You can submit your hardware or software requests directly to our IT support department.</p>
+            <div class="d-flex justify-content-center gap-3 mt-4">
+                <a href="tickets" class="btn btn-primary btn-lg fw-bold px-4">Create or View my Tickets</a>
+                <button @onclick="HandleLogout" class="btn btn-outline-danger btn-lg fw-bold px-4">Logout</button>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     private string emailInput = string.Empty;
     private string errorMessage = string.Empty;
 
-    private void HandleLogin()
+    // Variables pour stocker les statistiques calculées
+    private int totalTickets = 0;
+    private int newTickets = 0;
+    private int inProgressTickets = 0;
+    private int resolvedTickets = 0;
+    private int resolutionRate = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // On ne calcule les statistiques que si l'utilisateur est un technicien identifié
+        if (Auth.IsLoggedIn && Auth.IsTechnician)
+        {
+            await CalculateStats();
+        }
+    }
+
+    private async Task CalculateStats()
+    {
+        // Requêtes d'agrégation SQL en tâche de fond via EF Core (Count)
+        totalTickets = await Context.Tickets.CountAsync();
+        newTickets = await Context.Tickets.CountAsync(t => t.Status == "New");
+        inProgressTickets = await Context.Tickets.CountAsync(t => t.Status == "In Progress");
+        resolvedTickets = await Context.Tickets.CountAsync(t => t.Status == "Resolved");
+
+        // Calcul mathématique du taux de résolution (sécurité division par zéro)
+        if (totalTickets > 0)
+        {
+            resolutionRate = (int)Math.Round((double)resolvedTickets / totalTickets * 100);
+        }
+    }
+
+    private async Task HandleLogin()
     {
         if (string.IsNullOrWhiteSpace(emailInput) || !emailInput.Contains("@"))
         {
@@ -57,16 +198,22 @@
         }
 
         errorMessage = string.Empty;
-        
-        // On connecte l'utilisateur via notre service global
         Auth.Login(emailInput);
 
-        // Redirection automatique vers la page des tickets
-        Navigation.NavigateTo("tickets");
+        // Si c'est un tech, on recalcule immédiatement les statistiques avant d'afficher le panel
+        if (Auth.IsTechnician)
+        {
+            await CalculateStats();
+        }
+        else
+        {
+            Navigation.NavigateTo("tickets");
+        }
     }
 
     private void HandleLogout()
     {
         Auth.Logout();
+        Navigation.NavigateTo("/");
     }
 }

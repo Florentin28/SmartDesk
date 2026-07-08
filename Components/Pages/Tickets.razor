@@ -94,23 +94,24 @@
                         else
                         {
                             <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
+                                <table class="table align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 8%">ID</th>
-                                            <th style="width: 42%">Ticket Details</th>
-                                            <th style="width: 15%">Priority</th>
+                                            <th style="width: 47%">Ticket Details</th>
                                             <th style="width: 15%">Status</th>
                                             @if (Auth.IsTechnician)
                                             {
-                                                <th style="width: 20%">Manage Ticket</th>
+                                                <th style="width: 15%">Change Priority</th>
                                             }
+                                            <th style="width: 15%">Change Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach (var ticket in filteredTickets)
                                         {
-                                            <tr>
+                                            @* CHANGEMENT ICI : La ligne (tr) prend une couleur selon la priorite *@
+                                            <tr class="@GetRowPriorityClass(ticket.Priority)">
                                                 <td><span class="text-muted fw-bold">#@ticket.Id</span></td>
                                                 <td>
                                                     <div class="fw-bold text-dark">@ticket.Title</div>
@@ -120,42 +121,38 @@
                                                     </small>
                                                 </td>
                                                 <td>
-                                                    @* Affichage visuel de la priorité *@
-                                                    <span class="badge @GetPriorityBadgeClass(ticket.Priority) fw-bold">
-                                                        <i class="bi bi-flag-fill"></i> @ticket.Priority
-                                                    </span>
-                                                </td>
-                                                <td>
+                                                    @* Un seul badge textuel reste a l'ecran : le statut *@
                                                     <span class="badge @GetStatusBadgeClass(ticket.Status) fw-bold px-2 py-1">
                                                         @ticket.Status
                                                     </span>
                                                 </td>
                                                 
+                                                @* CHANGEMENT ICI : Le selecteur de priorite change juste la couleur en tâche de fond *@
                                                 @if (Auth.IsTechnician)
                                                 {
                                                     <td>
-                                                        <div class="d-flex flex-column gap-1">
-                                                            <!-- Menu Statut -->
-                                                            <div class="input-group input-group-sm">
-                                                                <span class="input-group-text bg-white" title="Status"><i class="bi bi-gear-fill"></i></span>
-                                                                <select value="@ticket.Status" @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
-                                                                    <option value="New">New</option>
-                                                                    <option value="In Progress">In Progress</option>
-                                                                    <option value="Resolved">Resolved</option>
-                                                                </select>
-                                                            </div>
-                                                            <!-- Menu Priorité -->
-                                                            <div class="input-group input-group-sm">
-                                                                <span class="input-group-text bg-white" title="Priority"><i class="bi bi-flag-fill"></i></span>
-                                                                <select value="@ticket.Priority" @onchange="(e) => UpdateTicketPriority(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
-                                                                    <option value="Low">Low</option>
-                                                                    <option value="Medium">Medium</option>
-                                                                    <option value="High">High</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
+                                                        <select value="@ticket.Priority" @onchange="(e) => UpdateTicketPriority(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
+                                                            <option value="Low">Low (Blue)</option>
+                                                            <option value="Medium">Medium (White)</option>
+                                                            <option value="High">High (Red)</option>
+                                                        </select>
                                                     </td>
                                                 }
+
+                                                <td>
+                                                    @if (Auth.IsTechnician)
+                                                    {
+                                                        <select value="@ticket.Status" @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
+                                                            <option value="New">New</option>
+                                                            <option value="In Progress">In Progress</option>
+                                                            <option value="Resolved">Resolved</option>
+                                                        </select>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">🔒 Locked</span>
+                                                    }
+                                                </td>
                                             </tr>
                                         }
                                     </tbody>
@@ -209,7 +206,6 @@
     {
         if (string.IsNullOrWhiteSpace(newTitle)) return; 
 
-        // La priorité par défaut est gérée automatiquement à "Medium" par le modèle
         var ticket = new Ticket { Title = newTitle, Description = newDescription };
         Context.Tickets.Add(ticket); 
         await Context.SaveChangesAsync(); 
@@ -227,7 +223,6 @@
         await LoadTickets(); 
     }
 
-    // AJOUT : Méthode pour mettre à jour la priorité en BDD
     private async Task UpdateTicketPriority(Ticket ticket, string? nextPriority)
     {
         if (string.IsNullOrEmpty(nextPriority)) return;
@@ -250,12 +245,11 @@
         _ => "bg-secondary text-white"
     };
 
-    // AJOUT : Couleurs de drapeaux/badges selon l'urgence
-    private string GetPriorityBadgeClass(string priority) => priority switch
+    // AJOUT : Traduction de la priorite directement en couleur de ligne de tableau
+    private string GetRowPriorityClass(string priority) => priority switch
     {
-        "Low" => "bg-light text-muted border",
-        "Medium" => "bg-secondary text-white",
-        "High" => "bg-danger text-white",
-        _ => "bg-secondary text-white"
+        "Low" => "table-primary",    // Bleu discret
+        "High" => "table-danger",    // Rouge alerte
+        _ => ""                      // Blanc neutre pour Medium
     };
 }
