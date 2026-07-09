@@ -12,5 +12,8 @@ namespace SmartDesk.Data
         }
 
         public DbSet<Ticket> Tickets { get; set; }
+
+        // AJOUT : DbSet pour la base de connaissances
+        public DbSet<KnowledgeBase> KnowledgeBases { get; set; }
     }
 }
