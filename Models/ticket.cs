@@ -8,9 +8,10 @@ namespace SmartDesk.Models
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Status { get; set; } = "New";
+        public string Priority { get; set; } = "Medium";
         
-        // AJOUT : Nouvelle propriété pour la gestion des priorités
-        public string Priority { get; set; } = "Medium"; 
+        // AJOUT : Stocke l'email de l'employé qui a créé le ticket
+        public string SubmittedBy { get; set; } = string.Empty; 
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
