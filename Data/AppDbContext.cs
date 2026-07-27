@@ -1,19 +1,22 @@
-using Microsoft.EntityFrameworkCore;
-using SmartDesk.Models;
+using Microsoft.EntityFrameworkCore; // importe le framework de microsoft pour la gestion de BDD
+using SmartDesk.Models; //importe tickets et procedures pour les utiliser dans le DbContext
 
 namespace SmartDesk.Data
 {
+    // AppDbContext hérite de DbContext, qui est la classe de base pour interagir avec une base de données via Entity Framework Core.
     public class AppDbContext : DbContext
     {
+        // Le constructeur de AppDbContext prend des options de configuration pour le DbContext.
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            // AJOUT : Force Entity Framework à créer le fichier ET les tables s'ils n'existent pas
+            // Force Entity Framework à créer le fichier ET les tables s'ils n'existent pas
             Database.EnsureCreated();
         }
 
+        // DbSet<Ticket> Chaque ligne de la table Tickets dans la BDD sera une instance de la classe Ticket.
         public DbSet<Ticket> Tickets { get; set; }
 
-        // AJOUT : DbSet pour la base de connaissances
-        public DbSet<KnowledgeBase> KnowledgeBases { get; set; }
+        // DbSet<Procedure> Chaque ligne de la table Procedures dans la BDD sera une instance de la classe Procedure.
+        public DbSet<Procedure> Procedures { get; set; }
     }
 }

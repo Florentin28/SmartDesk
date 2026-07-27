@@ -4,15 +4,25 @@ namespace SmartDesk.Models
 {
     public class Ticket
     {
-        public int Id { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        //  get pour lire le ticket, init pour qu'il puisse être crée mais plus modidifié par la suite 
+        public int Id { get; init;}
+
+        //  Valeur par défaut vide en cas d'omission de remplissage du titre 
+        public string Title { get; init;} = string.Empty;
+
+        //  Valeur par défaut vide en cas d'omission de remplissage de la description 
+        public string Description { get; init;} = string.Empty;
+
+        // Valeur par défaut "New" après la création du ticket 
         public string Status { get; set; } = "New";
+
+        // Valeur par défaut "Medium" après la création du ticket 
         public string Priority { get; set; } = "Medium";
-        
-        // AJOUT : Stocke l'email de l'employé qui a créé le ticket
-        public string SubmittedBy { get; set; } = string.Empty; 
-        
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Valeur par défaut vide en cas d'omission de remplissage de l'auteur du ticket 
+        public string SubmittedBy { get; init;} = string.Empty; 
+
+        // Valeur par défaut en UtcNow soit l'heure à laquelle le ticket est crée 
+        public DateTime CreatedAt { get; init;} = DateTime.UtcNow;
     }
 }

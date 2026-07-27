@@ -1,5 +1,13 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+
+@* 
+    --- INJECTIONS ET DÉPENDANCES ---
+    Ici, on "importe" les outils dont cette page a besoin pour fonctionner :
+    - EntityFrameworkCore : pour pouvoir utiliser les requêtes à la base de données.
+    - Auth / Context / Navigation : On demande à Blazor de nous fournir le service d'authentification, 
+      l'accès à la base de données (AppDbContext), et le gestionnaire de redirection (NavigationManager).
+*@
 @using Microsoft.EntityFrameworkCore
 @using SmartDesk.Data
 @inject SmartDesk.Services.AuthService Auth
@@ -9,8 +17,17 @@
 <PageTitle>Home - SmartDesk</PageTitle>
 
 <div class="container mt-4">
+    
+    @* 
+        --- ROUTAGE VISUEL (CONDITIONNEL) ---
+        C'est le cœur de notre page. Grâce au if/else, la page change complètement de visage 
+        selon l'état de l'utilisateur (déconnecté, technicien, ou employé).
+    *@
+
     @if (!Auth.IsLoggedIn)
     {
+        <!-- SECTION 1 : L'UTILISATEUR N'EST PAS CONNECTÉ (Formulaire de Login) -->
+        <!-- On affiche une carte centrée demandant l'email -->
         <div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
             <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
                 <div class="card-header bg-primary text-white text-center py-4 rounded-top">
@@ -21,16 +38,19 @@
                         <label class="form-label fw-semibold">Corporate Email Address</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <!-- L'attribut @bind lie ce que l'utilisateur tape directement à la variable C# 'emailInput' -->
                             <input @bind="emailInput" type="email" class="form-control" placeholder="name@company.com" />
                         </div>
                         <small class="text-muted d-block mt-1">Tip: Use <code>tech@smartdesk.com</code> for Technician view.</small>
                     </div>
 
+                    <!-- Affichage dynamique d'une erreur si la variable 'errorMessage' n'est pas vide -->
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
                         <div class="alert alert-danger p-2 small">@errorMessage</div>
                     }
 
+                    <!-- Le clic déclenche la fonction C# HandleLogin -->
                     <button @onclick="HandleLogin" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
                         Sign In <i class="bi bi-box-arrow-in-right"></i>
                     </button>
@@ -40,18 +60,23 @@
     }
     else if (Auth.IsTechnician)
     {
+        <!-- SECTION 2 : L'UTILISATEUR EST UN TECHNICIEN (Le Dashboard) -->
+        <!-- En-tête du Dashboard -->
         <div class="bg-white p-4 rounded shadow-sm mb-4 border-start border-primary border-4">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1 class="fw-bold text-dark m-0">Technician Command Center</h1>
                     <p class="text-muted m-0">Welcome back, <strong>@Auth.CurrentEmail</strong>. Here is the real-time status of the infrastructure.</p>
                 </div>
+                <!-- Bouton de déconnexion -->
                 <button @onclick="HandleLogout" class="btn btn-outline-danger btn-sm fw-bold">
                     <i class="bi bi-box-arrow-left"></i> Logout
                 </button>
             </div>
         </div>
 
+        <!-- Les Cartes de Statistiques -->
+        <!-- On utilise le symbole arobase pour injecter la valeur des variables C# calculées plus bas -->
         <div class="row g-4 mb-4">
             <div class="col-md-3">
                 <div class="card border-0 shadow-sm bg-white text-red h-100">
@@ -102,6 +127,7 @@
             </div>
         </div>
 
+        <!-- Section des actions rapides et santé du système -->
         <div class="row g-4">
             <div class="col-lg-6">
                 <div class="card shadow-sm border-0 h-100">
@@ -127,6 +153,7 @@
                                 <span>Ticket Resolution Rate</span>
                                 <span>@resolutionRate%</span>
                             </div>
+                            <!-- La barre de progression utilise la variable @resolutionRate pour définir sa largeur en CSS -->
                             <div class="progress" style="height: 12px;">
                                 <div class="progress-bar bg-success" role="progressbar" style="width: @resolutionRate%"></div>
                             </div>
@@ -142,6 +169,8 @@
     }
     else
     {
+        <!-- SECTION 3 : L'UTILISATEUR EST UN EMPLOYÉ STANDARD -->
+        <!-- Un affichage beaucoup plus simple, orienté uniquement vers la création de tickets -->
         <div class="card shadow-sm border-0 p-5 text-center my-5">
             <i class="bi bi-laptop display-1 text-primary mb-3"></i>
             <h2 class="fw-bold">Welcome to your SmartDesk Space</h2>
@@ -155,64 +184,80 @@
 </div>
 
 @code {
+    // --- 1. VARIABLES D'ÉTAT ---
+    // Ces variables stockent les données saisies par l'utilisateur ou calculées par l'application
     private string emailInput = string.Empty;
     private string errorMessage = string.Empty;
 
-    // Variables pour stocker les statistiques calculées
     private int totalTickets = 0;
     private int newTickets = 0;
     private int inProgressTickets = 0;
     private int resolvedTickets = 0;
     private int resolutionRate = 0;
 
+    // --- 2. CYCLE DE VIE DU COMPOSANT ---
+    // OnInitializedAsync est une méthode native de Blazor qui s'exécute automatiquement quand la page s'affiche.
     protected override async Task OnInitializedAsync()
     {
-        // On ne calcule les statistiques que si l'utilisateur est un technicien identifié
+        // Si l'utilisateur a déjà une session active (ex: il a rafraîchi la page) et qu'il est technicien,
+        // on déclenche le calcul des statistiques pour remplir le dashboard.
         if (Auth.IsLoggedIn && Auth.IsTechnician)
         {
             await CalculateStats();
         }
     }
 
+    // --- 3. LOGIQUE MÉTIER ET BASE DE DONNÉES ---
+    // Méthode asynchrone (Task/await) : elle ne bloque pas l'écran pendant qu'elle interroge la base de données.
     private async Task CalculateStats()
     {
-        // Requêtes d'agrégation SQL en tâche de fond via EF Core (Count)
+        // CountAsync() compte directement dans la base de données sans tout télécharger en mémoire.
         totalTickets = await Context.Tickets.CountAsync();
+        
+        // Explication LINQ : t => t.Status == "New"
+        // "Pour chaque ticket (t) dans la base, compte-le UNIQUEMENT SI sa propriété Status est égale à 'New'".
         newTickets = await Context.Tickets.CountAsync(t => t.Status == "New");
         inProgressTickets = await Context.Tickets.CountAsync(t => t.Status == "In Progress");
         resolvedTickets = await Context.Tickets.CountAsync(t => t.Status == "Resolved");
 
-        // Calcul mathématique du taux de résolution (sécurité division par zéro)
+        // Calcul du pourcentage : on s'assure que totalTickets n'est pas zéro pour éviter un crash mathématique.
         if (totalTickets > 0)
         {
             resolutionRate = (int)Math.Round((double)resolvedTickets / totalTickets * 100);
         }
     }
 
+    // --- 4. GESTION DES ÉVÉNEMENTS (BOUTONS) ---
     private async Task HandleLogin()
     {
+        // Vérification basique : l'email ne doit pas être vide et doit contenir un '@'
         if (string.IsNullOrWhiteSpace(emailInput) || !emailInput.Contains("@"))
         {
             errorMessage = "Please enter a valid corporate email address.";
-            return;
+            return; // On arrête la fonction ici si c'est invalide.
         }
 
         errorMessage = string.Empty;
+        
+        // On envoie l'email au service d'authentification pour qu'il crée la session.
         Auth.Login(emailInput);
 
-        // Si c'est un tech, on recalcule immédiatement les statistiques avant d'afficher le panel
+        // Redirection selon le rôle :
         if (Auth.IsTechnician)
         {
+            // Le technicien reste sur l'accueil, on calcule ses statistiques pour afficher le Dashboard.
             await CalculateStats();
         }
         else
         {
+            // L'employé standard est redirigé directement vers la page de création de tickets.
             Navigation.NavigateTo("tickets");
         }
     }
 
     private void HandleLogout()
     {
+        // On détruit la session dans le service Auth et on recharge la page de base.
         Auth.Logout();
         Navigation.NavigateTo("/");
     }
