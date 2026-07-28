@@ -2,7 +2,7 @@ namespace SmartDesk.Services
 {
     public class AuthService
     {
-        // Ces variables stockent les infos de l'utilisateur connecté en mémoire vive
+        // Variables de l'utilisateur (private set car la valeur doit pouvoir changer uniquement via les méthodes Login et Logout)
         public string CurrentEmail { get; private set; } = string.Empty;
         public bool IsLoggedIn { get; private set; } = false;
         public bool IsTechnician { get; private set; } = false;

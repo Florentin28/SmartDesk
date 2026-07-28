@@ -10,82 +10,80 @@
 
 <div class="container mt-4">
     
+     @* Message si l'utilisateur n'est pas connecté *@
     @if (!Auth.IsLoggedIn)
     {
         <div class="alert alert-danger text-center">
-            <h5><i class="bi bi-exclamation-triangle-fill"></i> Access Denied</h5>
-            <p>You must be logged in to view this page.</p>
-            <a href="/" class="btn btn-danger">Go to Login</a>
+            <h5><i class="bi bi-exclamation-triangle-fill"></i> Accès refusé</h5>
+            <p>Vous devez être connecté pour voir cette page.</p>
+            <a href="/" class="btn btn-danger">Aller à la page de connexion</a>
         </div>
     }
     else
     {
-        <div class="d-flex justify-content-between align-items-center mb-4 bg-light p-3 rounded shadow-sm">
-            <div>
-                <h2 class="text-primary fw-bold m-0"><i class="bi bi-ticket-perforated"></i> SmartDesk</h2>
-                <small class="text-muted">Logged in as: <strong class="text-dark">@Auth.CurrentEmail</strong> (@(Auth.IsTechnician ? "Technician" : "Employee"))</small>
-            </div>
-            
-            <button @onclick="Logout" class="btn btn-outline-danger btn-sm fw-bold">
-                <i class="bi bi-box-arrow-left"></i> Logout
-            </button>
-        </div>
-
         <div class="row g-4">
+            @* FORMULAIRE DE CRÉATION de ticket (EMPLOYÉ) *@
             @if (!Auth.IsTechnician)
             {
                 <div class="col-lg-4">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-primary text-white fw-bold py-3">
-                            Create a New Ticket
+                            Créer un Nouveau Ticket
                         </div>
                         <div class="card-body p-4">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Problem Title</label>
-                                <input @bind="newTitle" class="form-control form-control-lg" placeholder="e.g., Printer offline" />
+                                <label class="form-label fw-semibold">Titre du Problème</label>
+                                <input @bind="newTitle" class="form-control form-control-lg" placeholder="Titre du problème" />
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Detailed Description</label>
-                                <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Describe your issue here..."></textarea>
+                                <label class="form-label fw-semibold">Description Détailée</label>
+                                <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Décrivez votre problème ici..."></textarea>
                             </div>
                             <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
-                                Submit Ticket
+                                Soumettre le Ticket
                             </button>
                         </div>
                     </div>
                 </div>
             }
 
-            @* GRILLE DYNAMIQUE *@
+
+            
+
+            @* TABLEAU DE BORD (DYNAMIQUE) *@
+            @*  Si technicien -> Affichage 1 : 2 si ce n'est pas le cas (: signifie ELSE) *@
             <div class="@(Auth.IsTechnician ? "col-12" : "col-lg-8")">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                        <span>@(Auth.IsTechnician ? "Technician Console: All Tickets" : "Your Submitted Tickets")</span>
-                        <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) displayed</span>
+                        <span>@(Auth.IsTechnician ? "Tickets" : "Vos tickets")</span>
+                        <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) tickets</span> @* Compteur de tickets *@
                     </div>
                     
                     <div class="card-body p-0">
+                        @* BOUTONS DE FILTRAGE (TECHNICIEN) *@
                         @if (Auth.IsTechnician)
                         {
                             <div class="bg-light p-3 border-bottom d-flex gap-2">
-                                <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>All</button>
-                                <button @onclick='() => ChangeFilter("New")' class='btn btn-sm @(selectedFilter == "New" ? "btn-info" : "btn-outline-info") fw-semibold'>New</button>
-                                <button @onclick='() => ChangeFilter("In Progress")' class='btn btn-sm @(selectedFilter == "In Progress" ? "btn-warning" : "btn-outline-warning") fw-semibold'>In Progress</button>
-                                <button @onclick='() => ChangeFilter("Resolved")' class='btn btn-sm @(selectedFilter == "Resolved" ? "btn-success" : "btn-outline-success") fw-semibold'>Resolved</button>
+                                <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>Tous</button>
+                                <button @onclick='() => ChangeFilter("New")' class='btn btn-sm @(selectedFilter == "New" ? "btn-info" : "btn-outline-info") fw-semibold'>Nouveau</button>
+                                <button @onclick='() => ChangeFilter("In Progress")' class='btn btn-sm @(selectedFilter == "In Progress" ? "btn-warning" : "btn-outline-warning") fw-semibold'>En Cours</button>
+                                <button @onclick='() => ChangeFilter("Resolved")' class='btn btn-sm @(selectedFilter == "Resolved" ? "btn-success" : "btn-outline-success") fw-semibold'>Résolu</button>
                             </div>
                         }
 
+                        @* Si la page est en train de charger *@
                         @if (filteredTickets == null)
                         {
                             <div class="p-4 text-center">
                                 <div class="spinner-border text-primary" role="status"></div>
                             </div>
                         }
+                        @* Si aucun ticket n'est trouvé *@
                         else if (!filteredTickets.Any())
                         {
                             <div class="p-5 text-center text-muted">
                                 <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                <span>No tickets found.</span>
+                                <span>Aucun ticket trouvé.</span>
                             </div>
                         }
                         else
@@ -95,12 +93,12 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 8%">ID</th>
-                                            <th style="width: 47%">Ticket Details</th>
-                                            <th style="width: 15%">Status</th>
+                                            <th style="width: 47%">Détails</th>
+                                            <th style="width: 15%">Statut</th>
                                             @if (Auth.IsTechnician)
                                             {
-                                                <th style="width: 15%">Change Priority</th>
-                                                <th style="width: 15%">Change Status</th>
+                                                <th style="width: 15%">Changer Priorité</th>
+                                                <th style="width: 15%">Changer Statut</th>
                                             }
                                         </tr>
                                     </thead>
@@ -130,16 +128,16 @@
                                                 {
                                                     <td>
                                                         <select value="@ticket.Priority" @onchange="(e) => UpdateTicketPriority(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
-                                                            <option value="Low">Low</option>
-                                                            <option value="Medium">Medium</option>
-                                                            <option value="High">High</option>
+                                                            <option value="Low">Bas</option>
+                                                            <option value="Medium">Moyen</option>
+                                                            <option value="High">Haut</option>
                                                         </select>
                                                     </td>
                                                     <td>
                                                         <select value="@ticket.Status" @onchange="(e) => UpdateTicketStatus(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
-                                                            <option value="New">New</option>
-                                                            <option value="In Progress">In Progress</option>
-                                                            <option value="Resolved">Resolved</option>
+                                                            <option value="New">Nouveau</option>
+                                                            <option value="In Progress">En Cours</option>
+                                                            <option value="Resolved">Résolu</option>
                                                         </select>
                                                     </td>
                                                 }
@@ -157,86 +155,84 @@
 </div>
 
 @code {
-    private List<Ticket>? allTickets; 
+    // Initialisation des variables vides 
     private List<Ticket>? filteredTickets; 
     
     private string newTitle = string.Empty; 
     private string newDescription = string.Empty; 
     private string selectedFilter = "All";
 
+    // Charge les tickets de la BDD sur la page 
     protected override async Task OnInitializedAsync() => await LoadTickets(); 
 
     private async Task LoadTickets()
     {
-        allTickets = await Context.Tickets.ToListAsync(); 
-        ApplyFilter();
+        IQueryable<Ticket> query = Context.Tickets; @* Prépare la requête SQL des tickets *@
+
+        if (!Auth.IsTechnician)
+        {
+            // L'employé ne voit STRICTEMENT que ses propres tickets 
+            query = query.Where(t => t.SubmittedBy == Auth.CurrentEmail);
+        }
+        else if (selectedFilter != "All")
+        {
+            // Le technicien applique le filtre sélectionné 
+            query = query.Where(t => t.Status == selectedFilter);
+        }
+
+        filteredTickets = await query.ToListAsync();
     }
 
-    private void ApplyFilter()
-    {
-        if (allTickets == null) return;
-
-        if (Auth.IsTechnician)
-        {
-            // Le technicien voit tout, mais peut filtrer par l'état des boutons (All, New, etc.)
-            if (selectedFilter == "All") filteredTickets = allTickets;
-            else filteredTickets = allTickets.Where(t => t.Status == selectedFilter).ToList();
-        }
-        else
-        {
-            // CHANGEMENT ICI : L'employé ne voit STRICTEMENT que les tickets liés à son email de session
-            filteredTickets = allTickets.Where(t => t.SubmittedBy == Auth.CurrentEmail).ToList();
-        }
-    }
-
-    private void ChangeFilter(string filterName)
+    // Choisir filtre de tickets 
+    private async Task ChangeFilter(string filterName)
     {
         selectedFilter = filterName;
-        ApplyFilter();
+        await LoadTickets();
     }
 
+    // Créer un nouveau ticket 
     private async Task CreateTicket()
     {
-        if (string.IsNullOrWhiteSpace(newTitle)) return; 
+        if (string.IsNullOrWhiteSpace(newTitle)) return; @* Vérifie que le titre n'est pas vide *@
 
-        // CHANGEMENT ICI : On associe l'email de la personne connectée au ticket créé
-        var ticket = new Ticket 
+        var ticket = new Ticket @* Prépare le tickets avec les données saisies par l'utilisateur *@
         { 
             Title = newTitle, 
             Description = newDescription,
             SubmittedBy = Auth.CurrentEmail 
         };
         
-        Context.Tickets.Add(ticket); 
+        Context.Tickets.Add(ticket); @* Insère le ticket dans la BDD *@
         await Context.SaveChangesAsync(); 
 
-        newTitle = string.Empty;
+        newTitle = string.Empty; @* Réinitialise les champs *@
         newDescription = string.Empty;
-        await LoadTickets();
+        await LoadTickets(); @* Recharge la liste des tickets *@
     }
 
+    // Mettre à jour le statut d'un ticket 
     private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
     {
         if (string.IsNullOrEmpty(nextStatus)) return;
         ticket.Status = nextStatus;
         await Context.SaveChangesAsync();
-        await LoadTickets(); 
+
+        // Si un filtre actif est sélectionné, on rafraîchit la liste pour réorganiser les éléments
+        if (selectedFilter != "All")
+        {
+            await LoadTickets();
+        }
     }
 
+    // Met à jour la priorité du ticket 
     private async Task UpdateTicketPriority(Ticket ticket, string? nextPriority)
     {
         if (string.IsNullOrEmpty(nextPriority)) return;
         ticket.Priority = nextPriority;
         await Context.SaveChangesAsync();
-        await LoadTickets(); 
     }
 
-    private void Logout()
-    {
-        Auth.Logout();
-        Navigation.NavigateTo("/");
-    }
-
+    // Change la couleur de fond du ticket suivant son Statut
     private string GetStatusBadgeClass(string status) => status switch
     {
         "New" => "bg-info text-dark",
@@ -245,10 +241,13 @@
         _ => "bg-secondary text-white"
     };
 
+
+    // Change la couleur de fond du ticket suivant sa priorité
     private string GetRowPriorityClass(string priority) => priority switch
     {
         "Low" => "table-primary",    
-        "High" => "table-danger",    
+        "High" => "table-danger", 
+        "Medium" => "table-light",
         _ => ""                      
     };
 }
