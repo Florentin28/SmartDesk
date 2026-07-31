@@ -37,9 +37,10 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Description Détailée</label>
+                                @* @bind pour garder en mémoire le contenu de la case dès qu'il clique autre part *@
                                 <textarea @bind="newDescription" class="form-control" rows="4" placeholder="Décrivez votre problème ici..."></textarea>
                             </div>
-                            <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2">
+                            <button @onclick="CreateTicket" class="btn btn-primary w-100 btn-lg fw-bold mt-2"> 
                                 Soumettre le Ticket
                             </button>
                         </div>
@@ -176,7 +177,7 @@
         }
         else if (selectedFilter != "All")
         {
-            // Le technicien applique le filtre sélectionné 
+            // Le technicien voit les tickets filtrés par statut si un filtre est sélectionné
             query = query.Where(t => t.Status == selectedFilter);
         }
 

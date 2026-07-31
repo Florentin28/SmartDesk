@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore; // importe le framework de microsoft pour la gestion de BDD
 using SmartDesk.Models; //importe tickets et procedures pour les utiliser dans le DbContext
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore; //importe le framework de microsoft pour la gestion de l'identité et des utilisateurs
 
 namespace SmartDesk.Data
 {
-    // AppDbContext hérite de DbContext, qui est la classe de base pour interagir avec une base de données via Entity Framework Core.
-    public class AppDbContext : DbContext
+    // AppDbContext hérite de IdentityDbContext pour gérer l'authentification et l'autorisation des utilisateurs.
+    public class AppDbContext : IdentityDbContext
     {
         // Le constructeur de AppDbContext prend des options de configuration pour le DbContext.
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
