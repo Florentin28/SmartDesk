@@ -10,8 +10,7 @@ namespace SmartDesk.Data
         // Le constructeur de AppDbContext prend des options de configuration pour le DbContext.
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            // Force Entity Framework à créer le fichier ET les tables s'ils n'existent pas
-            Database.EnsureCreated();
+          
         }
 
         // DbSet<Ticket> Chaque ligne de la table Tickets dans la BDD sera une instance de la classe Ticket.
