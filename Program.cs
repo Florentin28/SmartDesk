@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore; // importe le framework de microsoft pour la gestion de BDD
 using SmartDesk.Components; // importe les Pages et les layouts 
+using Microsoft.AspNetCore.Identity; // Pour IdentityUser et IdentityRole
+using SmartDesk.Data;                // Pour AppDbContext
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,18 @@ builder.Services.AddRazorComponents()
 // Configurer et enregistrer le DbContext pour utiliser une base de données SQLite (smartdesk.db)
 builder.Services.AddDbContext<SmartDesk.Data.AppDbContext>(options =>
     options.UseSqlite("Data Source=smartdesk.db"));
+
+builder.Services.AddIdentityCore<IdentityUser>(options => 
+{
+        options.Password.RequireDigit = true; // au moins un chiffre dans le MDP
+        options.Password.RequireLowercase = true; // au moins une lettre minuscule dans le MDP
+        options.Password.RequireUppercase = true; // au moins une lettre majuscule dans le MDP
+        options.Password.RequireNonAlphanumeric = false; // pas besoin de caractère spécial dans le MDP
+        options.Password.RequiredLength = 6; // longueur minimale du MDP
+})
+.AddRoles<IdentityRole>() // différencier technicien de employé
+.AddEntityFrameworkStores<AppDbContext>(); // relier Identity au fichier SQlite
+
 
 
 var app = builder.Build();
