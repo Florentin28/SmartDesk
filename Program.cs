@@ -22,7 +22,7 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
         options.Password.RequireDigit = true; // au moins un chiffre dans le MDP
         options.Password.RequireLowercase = true; // au moins une lettre minuscule dans le MDP
         options.Password.RequireUppercase = true; // au moins une lettre majuscule dans le MDP
-        options.Password.RequireNonAlphanumeric = false; // pas besoin de caractère spécial dans le MDP
+        options.Password.RequireNonAlphanumeric = true; // au moins un caractère spécial dans le MDP
         options.Password.RequiredLength = 6; // longueur minimale du MDP
 })
 .AddRoles<IdentityRole>() // différencier technicien de employé
@@ -31,6 +31,20 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
 
 
 var app = builder.Build();
+
+// Ensure the database is created
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var dbContext = services.GetRequiredService<AppDbContext>();
+
+    // Apply pending migrations
+    await dbContext.Database.MigrateAsync();
+
+    // Seed roles and admin user
+    await IdentitySeeder.SeedRolesAndAdminAsync(services);
+}
+
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
