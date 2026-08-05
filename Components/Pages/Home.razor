@@ -1,9 +1,9 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 
-@* 
-    --- INJECTIONS ET DÉPENDANCES ---
-*@
+@* --- INJECTIONS ET DÉPENDANCES --- *@
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> UserManager
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
 
@@ -20,13 +20,22 @@
                     <h3 class="m-0 fw-bold"><i class="bi bi-shield-lock"></i> Connexion SmartDesk</h3>
                 </div>
                 <div class="card-body p-4">
+                    
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Adresse mail</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
                             <input @bind="emailInput" type="email" class="form-control" placeholder="nom@mail.com" />
                         </div>
-                        <small class="text-muted d-block mt-1">Utiliser le mail : <code>tech@smartdesk.com</code> pour passer en Technicien</small>
+                    </div>
+
+                    <!-- NOUVEAU : Le champ mot de passe -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Mot de passe</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input @bind="passwordInput" type="password" class="form-control" placeholder="********" />
+                        </div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(errorMessage))
@@ -35,7 +44,7 @@
                     }
 
                     <button @onclick="HandleLogin" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
-                        Sign In <i class="bi bi-box-arrow-in-right"></i>
+                        Se connecter <i class="bi bi-box-arrow-in-right"></i>
                     </button>
                 </div>
             </div>
@@ -47,10 +56,10 @@
         <div class="card shadow-sm border-0 p-5 text-center my-5">
             <i class="bi bi-speedometer2 display-1 text-primary mb-3"></i>
             <h2 class="fw-bold">Espace Technicien SmartDesk</h2>
-            <p class="text-muted px-md-5">Bienvenue dans votre espace d'administration. Le tableau de bord avec vos statistiques sera disponible prochainement.</p>
+            <p class="text-muted px-md-5">Bienvenue dans votre espace d'administration.</p>
             <div class="d-flex justify-content-center gap-3 mt-4">
                 <a href="tickets" class="btn btn-primary btn-lg fw-bold px-4">
-                    <i class="bi bi-ticket-detailed me-2"></i>Accéder à la gestion des Tickets
+                    <i class="bi bi-ticket-detailed me-2"></i>Accéder aux Tickets
                 </a>
                 <button @onclick="HandleLogout" class="btn btn-outline-danger btn-lg fw-bold px-4">Déconnexion</button>
             </div>
@@ -73,24 +82,41 @@
 
 @code {
     // --- 1. VARIABLES D'ÉTAT ---
-    //
-    private string emailInput = string.Empty; // Variable pour stocker l'email saisi par l'utilisateur dans le champ de connexion
-    private string errorMessage = string.Empty; // Variable pour stocker le message d'erreur à afficher si l'email est invalide
+    private string emailInput = string.Empty; 
+    private string passwordInput = string.Empty;
+    private string errorMessage = string.Empty; 
 
-    // --- 2. GESTION DES ÉVÉNEMENTS (BOUTONS) ---
-    private void HandleLogin()
+    // --- 2. GESTION DES ÉVÉNEMENTS ---
+    private async Task HandleLogin()
     {
-        // Si l'email est vide ou ne contient pas de "@", on affiche un message d'erreur
-        if (string.IsNullOrWhiteSpace(emailInput) || !emailInput.Contains("@"))
+        // 1. Vérification basique
+        if (string.IsNullOrWhiteSpace(emailInput) || string.IsNullOrWhiteSpace(passwordInput))
         {
-            errorMessage = "Merci d'entrer une adresse mail valide.";
+            errorMessage = "Veuillez remplir tous les champs.";
             return;
         }
 
-        errorMessage = string.Empty; // Réinitialisation du message d'erreur si l'email est valide
-        
+        errorMessage = string.Empty; 
 
-        Auth.Login(emailInput); // Passe le status de l'utilisateur à connecté et stocke son email dans le service AuthService
+        // 2. Vérification dans la base de données (Le vigile)
+        var user = await UserManager.FindByEmailAsync(emailInput);
+        
+        if (user == null)
+        {
+            errorMessage = "Identifiants incorrects."; // Message générique pour des raisons de sécurité
+            return;
+        }
+
+        var isPasswordValid = await UserManager.CheckPasswordAsync(user, passwordInput);
+        
+        if (!isPasswordValid)
+        {
+            errorMessage = "Identifiants incorrects."; 
+            return;
+        }
+
+        // 3. SUCCÈS : On connecte l'utilisateur dans ton système visuel (AuthService)
+        Auth.Login(emailInput); 
     }
 
     private void HandleLogout()

@@ -48,5 +48,41 @@ public static class IdentitySeeder
                 throw new Exception("Failed to create the admin user: " + string.Join(", ", result.Errors));
             }
         }
+       // --- CRÉATION DU COMPTE TECHNICIEN ---
+        var techEmail = "tech@smartdesk.com";
+        if (await userManager.FindByEmailAsync(techEmail) == null)
+        {
+            var techUser = new IdentityUser
+            {
+                UserName = techEmail,
+                Email = techEmail,
+                EmailConfirmed = true
+            };
+            
+            var result = await userManager.CreateAsync(techUser, "Smartdesk@2026");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(techUser, "Technicien");
+            }
+        }
+
+        // --- CRÉATION DU COMPTE EMPLOYÉ ---
+        var employeEmail = "employe@smartdesk.com";
+        if (await userManager.FindByEmailAsync(employeEmail) == null)
+        {
+            var employeUser = new IdentityUser
+            {
+                UserName = employeEmail,
+                Email = employeEmail,
+                EmailConfirmed = true
+            };
+            
+            var result = await userManager.CreateAsync(employeUser, "Smartdesk@2026");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(employeUser, "Employe");
+            }
+        }
+ 
     }
 }
