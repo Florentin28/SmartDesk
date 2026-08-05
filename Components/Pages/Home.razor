@@ -117,11 +117,12 @@
 
         // 3. SUCCÈS : On connecte l'utilisateur dans ton système visuel (AuthService)
         Auth.Login(emailInput); 
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 
     private void HandleLogout()
     {
         Auth.Logout();
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 }

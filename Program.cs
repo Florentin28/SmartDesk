@@ -6,7 +6,7 @@ using SmartDesk.Data;                // Pour AppDbContext
 var builder = WebApplication.CreateBuilder(args);
 
 // Enregistre le service d'authentification pour gérer la session et la connexion des utilisateurs
-builder.Services.AddScoped<SmartDesk.Services.AuthService>();
+builder.Services.AddSingleton<SmartDesk.Services.AuthService>();
 
 
 
