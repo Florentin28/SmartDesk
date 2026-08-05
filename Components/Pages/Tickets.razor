@@ -162,9 +162,21 @@
     private string newTitle = string.Empty; 
     private string newDescription = string.Empty; 
     private string selectedFilter = "All";
+ 
+    // Charge les tickets de la BDD sur la page (Version SÉCURISÉE)
+    protected override async Task OnInitializedAsync() 
+    { 
+        // Vérification de l'état de connexion
+        if (!Auth.IsLoggedIn)
+        {
+            // Expulsion immédiate vers la page de connexion
+            Navigation.NavigateTo("/");
+            return;
+        }
 
-    // Charge les tickets de la BDD sur la page 
-    protected override async Task OnInitializedAsync() => await LoadTickets(); 
+        // Chargement des tickets depuis la base de données
+        await LoadTickets(); 
+    }
 
     private async Task LoadTickets()
     {
