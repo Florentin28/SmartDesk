@@ -1,0 +1,101 @@
+@page "/admin"
+@rendermode InteractiveServer // rend la page interactive
+
+
+@using Microsoft.AspNetCore.Identity
+@using SmartDesk.Data 
+
+@inject UserManager<IdentityUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject SmartDesk.Services.AuthService Auth
+
+@inject AppDbContext Context 
+
+
+
+
+<PageTitle>Admin</PageTitle>
+
+ @* Message si l'utilisateur n'est pas connecté *@
+    @if (!Auth.IsLoggedIn)
+    {
+        <div class="alert alert-danger text-center">
+            <h5><i class="bi bi-exclamation-triangle-fill"></i> Accès refusé</h5>
+            <p>Vous devez être connecté pour voir cette page.</p>
+            <a href="/" class="btn btn-danger">Aller à la page de connexion</a>
+        </div>
+    }
+
+
+    @if (Auth.IsAdmin){
+                <div class="col-lg-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-primary text-white fw-bold py-3">
+                            Créer un nouvel utilisateur
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Email</label>
+                                <input @bind="newEmail" class="form-control form-control-lg" placeholder="Email" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Mot de passe</label>
+                                <input type="password" class="form-control form-control-lg" @bind="newPassword" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Roles</label>
+                                <select @bind="newRole" class="form-select form-select-lg">
+                                    <option value="">Sélectionner un rôle</option>
+                                    <option value="Technicien">Technicien</option>
+                                    <option value="Employe">Utilisateur</option>
+                                </select>
+                            </div>
+
+
+                            
+                            <button @onclick="CreateUser" class="btn btn-primary w-100 btn-lg fw-bold mt-2"> 
+                                Créer l'utilisateur <i class="bi bi-person-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+@code {
+    private string newEmail = string.Empty; 
+
+     private string newPassword = string.Empty; 
+
+    private string newRole = string.Empty; 
+
+    private async Task CreateUser(){
+            if (string.IsNullOrWhiteSpace(newEmail)) return; @* Vérifie que l'email n'est pas vide *@
+            if (string.IsNullOrWhiteSpace(newPassword)) return; @* Vérifie que le mot de passe n'est pas vide *@
+            if (string.IsNullOrWhiteSpace(newRole)) return; @* Vérifie que le rôle n'est pas vide *@
+
+
+            var user = new IdentityUser
+            {
+                UserName = newEmail,
+                Email = newEmail
+            };
+
+        // 1. On demande au vigile de créer le compte ET de crypter le mot de passe
+        var result = await UserManager.CreateAsync(user, newPassword);
+
+        // 2. Si le vigile a réussi (mot de passe assez fort, etc.)
+        if (result.Succeeded)
+        {
+        // 3. On lui demande d'attacher le rôle choisi au nouvel utilisateur
+        await UserManager.AddToRoleAsync(user, newRole);
+        
+        // On vide les champs seulement si ça a marché
+        newEmail = string.Empty;
+        newPassword = string.Empty;
+        newRole = string.Empty;
+        }
+
+
+    }
+
+
+}

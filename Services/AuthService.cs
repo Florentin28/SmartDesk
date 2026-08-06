@@ -7,6 +7,9 @@ namespace SmartDesk.Services
         public bool IsLoggedIn { get; private set; } = false;
         public bool IsTechnician { get; private set; } = false;
 
+        public bool IsAdmin { get; private set; } = false;
+
+
         // Méthode pour se connecter
         public void Login(string email)
         {
@@ -24,6 +27,16 @@ namespace SmartDesk.Services
             {
                 IsTechnician = false;
             }
+
+            // Logique métier : si l'email contient "admin@", c'est un administrateur
+            if (email.ToLower().StartsWith("admin@"))
+            {
+                IsAdmin = true;
+            }
+            else
+            {
+                IsAdmin = false;
+            }
         }
 
         // Méthode pour se déconnecter
@@ -32,6 +45,7 @@ namespace SmartDesk.Services
             CurrentEmail = string.Empty;
             IsLoggedIn = false;
             IsTechnician = false;
+            IsAdmin = false;
         }
     }
 }

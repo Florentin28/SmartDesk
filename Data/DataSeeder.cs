@@ -83,6 +83,8 @@ public static class IdentitySeeder
                 await userManager.AddToRoleAsync(employeUser, "Employe");
             }
         }
+
+        
  
     }
 }
