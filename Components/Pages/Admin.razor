@@ -8,6 +8,8 @@
 @inject UserManager<IdentityUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject SmartDesk.Services.AuthService Auth
+@inject NavigationManager Navigation
+
 
 @inject AppDbContext Context 
 
@@ -59,9 +61,8 @@
                         </div>
                     </div>
                 </div>
-            }
 
-            <div class="col-lg-6 mt-4">
+                <div class="col-lg-6 mt-4">
     <div class="card shadow-sm border-0">
         <div class="card-header bg-secondary text-white fw-bold py-3">
             Liste des utilisateurs existants
@@ -89,6 +90,9 @@
             </div>
     </div>
 </div>
+            }
+
+    
 @code {
     private string newEmail = string.Empty; 
 
@@ -130,6 +134,18 @@
     
     protected override void  OnInitialized(){
         users = UserManager.Users.ToList(); // On récupère tous les utilisateurs et on les stocke dans la variable users
+
+         // Vérification de l'état de connexion
+        if (!Auth.IsAdmin)
+        {
+            // Expulsion immédiate vers la page de connexion
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        // Chargement des users depuis la base de données
+        users = UserManager.Users.ToList(); 
+    }
     }
 
    

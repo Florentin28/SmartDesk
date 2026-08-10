@@ -23,7 +23,7 @@
     {
         <div class="row g-4">
             @* FORMULAIRE DE CRÉATION de ticket (EMPLOYÉ) *@
-            @if (!Auth.IsTechnician)
+            @if (!Auth.IsTechnician && !Auth.IsAdmin) // Vérifie que l'utilisateur n'est pas un technicien ou un admin pour afficher le formulaire de création de ticket
             {
                 <div class="col-lg-4">
                     <div class="card shadow-sm border-0">
@@ -53,16 +53,16 @@
 
             @* TABLEAU DE BORD (DYNAMIQUE) *@
             @*  Si technicien -> Affichage 1 : 2 si ce n'est pas le cas (: signifie ELSE) *@
-            <div class="@(Auth.IsTechnician ? "col-12" : "col-lg-8")">
+            <div class="@(Auth.IsTechnician || Auth.IsAdmin ? "col-12" : "col-lg-8")">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                        <span>@(Auth.IsTechnician ? "Tickets" : "Vos tickets")</span>
-                        <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) tickets</span> @* Compteur de tickets *@
+                    <span>@(Auth.IsTechnician || Auth.IsAdmin ? "Tous les tickets" : "Vos tickets")</span>
+                    <span class="badge bg-secondary">@(filteredTickets?.Count ?? 0) tickets</span> @* Compteur de tickets *@
                     </div>
                     
                     <div class="card-body p-0">
                         @* BOUTONS DE FILTRAGE (TECHNICIEN) *@
-                        @if (Auth.IsTechnician)
+                        @if (Auth.IsTechnician || Auth.IsAdmin)
                         {
                             <div class="bg-light p-3 border-bottom d-flex gap-2">
                                 <button @onclick='() => ChangeFilter("All")' class='btn btn-sm @(selectedFilter == "All" ? "btn-dark" : "btn-outline-dark") fw-semibold'>Tous</button>
@@ -96,7 +96,7 @@
                                             <th style="width: 8%">ID</th>
                                             <th style="width: 47%">Détails</th>
                                             <th style="width: 15%">Statut</th>
-                                            @if (Auth.IsTechnician)
+                                            @if (Auth.IsTechnician || Auth.IsAdmin)
                                             {
                                                 <th style="width: 15%">Changer Priorité</th>
                                                 <th style="width: 15%">Changer Statut</th>
@@ -113,7 +113,7 @@
                                                     <small class="text-muted d-block text-wrap">@ticket.Description</small>
                                                     <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
                                                         <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm") 
-                                                        @if (Auth.IsTechnician)
+                                                        @if (Auth.IsTechnician|| Auth.IsAdmin)
                                                         {
                                                             <span> | <i class="bi bi-person"></i> By: @ticket.SubmittedBy</span>
                                                         }
@@ -125,7 +125,7 @@
                                                     </span>
                                                 </td>
                                                 
-                                                @if (Auth.IsTechnician)
+                                                @if (Auth.IsTechnician|| Auth.IsAdmin)
                                                 {
                                                     <td>
                                                         <select value="@ticket.Priority" @onchange="(e) => UpdateTicketPriority(ticket, e.Value?.ToString())" class="form-select form-select-sm fw-semibold">
@@ -163,7 +163,7 @@
     private string newDescription = string.Empty; 
     private string selectedFilter = "All";
  
-    // Charge les tickets de la BDD sur la page (Version SÉCURISÉE)
+    // Charge les tickets de la BDD sur la page 
     protected override async Task OnInitializedAsync() 
     { 
         // Vérification de l'état de connexion
@@ -182,7 +182,7 @@
     {
         IQueryable<Ticket> query = Context.Tickets; @* Prépare la requête SQL des tickets *@
 
-        if (!Auth.IsTechnician)
+        if (!Auth.IsTechnician && !Auth.IsAdmin)
         {
             // L'employé ne voit STRICTEMENT que ses propres tickets 
             query = query.Where(t => t.SubmittedBy == Auth.CurrentEmail);
