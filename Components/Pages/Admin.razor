@@ -60,6 +60,35 @@
                     </div>
                 </div>
             }
+
+            <div class="col-lg-6 mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-secondary text-white fw-bold py-3">
+            Liste des utilisateurs existants
+        </div>
+        <div class="card-body p-4">
+            
+           
+            <table class="table table-striped"> 
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td>@user.UserName</td>
+                            <td>@user.Email</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+    </div>
+</div>
 @code {
     private string newEmail = string.Empty; 
 
@@ -94,8 +123,15 @@
         newRole = string.Empty;
         }
 
-
+    users = UserManager.Users.ToList(); // On récupère tous les utilisateurs et on les stocke dans la variable users
     }
 
+    private List<IdentityUser> users = new(); // variable pour stocker les utilisateurs
+    
+    protected override void  OnInitialized(){
+        users = UserManager.Users.ToList(); // On récupère tous les utilisateurs et on les stocke dans la variable users
+    }
 
+   
 }
+
