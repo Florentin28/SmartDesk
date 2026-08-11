@@ -24,5 +24,8 @@ namespace SmartDesk.Models
 
         // Valeur par défaut en UtcNow soit l'heure à laquelle le ticket est crée 
         public DateTime CreatedAt { get; init;} = DateTime.UtcNow;
+
+        // Valeur par défaut null en cas d'omission de remplissage du chemin de la capture d'écran
+        public string? ScreenshotPath { get; init;} = null;
     }
 }
