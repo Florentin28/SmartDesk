@@ -5,9 +5,13 @@
 @using SmartDesk.Data 
 @using Microsoft.EntityFrameworkCore 
 @using Microsoft.AspNetCore.Components.Forms @* Pour l'ajout de pièce jointe *@
+@using System.IO @* Pour les chemins de dossiers *@
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
 @inject AppDbContext Context 
+
+@* Injecte l'environnement d'hébergement *@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
 <div class="container mt-4">
     
@@ -116,6 +120,14 @@
                                                 <td>
                                                     <div class="fw-bold text-dark">@ticket.Title</div>
                                                     <small class="text-muted d-block text-wrap">@ticket.Description</small>
+                                                    @if (!string.IsNullOrEmpty(ticket.ScreenshotPath))
+                                                        {
+                                                            <div class="mt-2">
+                                                                <a href="@ticket.ScreenshotPath" target="_blank" class="badge bg-secondary text-decoration-none">
+                                                                    <i class="bi bi-paperclip"></i> Voir la pièce jointe
+                                                                </a>
+                                                            </div>
+                                                        }
                                                     <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
                                                         <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm") 
                                                         @if (Auth.IsTechnician|| Auth.IsAdmin)
@@ -214,11 +226,36 @@
     {
         if (string.IsNullOrWhiteSpace(newTitle)) return; @* Vérifie que le titre n'est pas vide *@
 
+        // On prépare une variable vide pour le chemin
+        string? imagePath = null; 
+
+        // Si l'utilisateur a bien sélectionné un fichier...
+        if (selectedFile != null)
+        {
+        // On génère un nom unique (ex: 550e8400-e29b.png)
+        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(selectedFile.Name);
+        
+        // On trouve le chemin du dossier "uploads" dans wwwroot
+        var folderPath = Path.Combine(Env.WebRootPath, "uploads");
+        Directory.CreateDirectory(folderPath); // Crée le dossier s'il n'existe pas encore
+        
+        // On combine le dossier et le nom du fichier
+        var fullPath = Path.Combine(folderPath, fileName);
+
+        // On copie physiquement le fichier sur le disque dur (avec une limite de 5 Mo)
+        using var stream = new FileStream(fullPath, FileMode.Create);
+        await selectedFile.OpenReadStream(1024 * 1024 * 5).CopyToAsync(stream);
+
+        // On garde le chemin "web" pour la base de données
+        imagePath = "/uploads/" + fileName;
+         }
+
         var ticket = new Ticket @* Prépare le tickets avec les données saisies par l'utilisateur *@
         { 
             Title = newTitle, 
             Description = newDescription,
-            SubmittedBy = Auth.CurrentEmail 
+            SubmittedBy = Auth.CurrentEmail,
+            ScreenshotPath = imagePath
         };
         
         Context.Tickets.Add(ticket); @* Insère le ticket dans la BDD *@
@@ -226,6 +263,7 @@
 
         newTitle = string.Empty; @* Réinitialise les champs *@
         newDescription = string.Empty;
+        selectedFile = null;
         await LoadTickets(); @* Recharge la liste des tickets *@
     }
 
@@ -274,4 +312,5 @@
 {
     selectedFile = e.File;
 }
+
 }
