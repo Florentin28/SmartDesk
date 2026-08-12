@@ -130,7 +130,10 @@
                                                         }
                                                     <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
                                                         <i class="bi bi-clock"></i> @ticket.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm") 
-                                                        @if (Auth.IsTechnician|| Auth.IsAdmin)
+                                                    <span class="text-danger fw-bold ms-2">
+                                                        <i class="bi bi-hourglass-split"></i> Échéance : @ticket.GetDeadline().ToLocalTime().ToString("dd/MM HH:mm")
+                                                    </span>     
+                                                    @if (Auth.IsTechnician|| Auth.IsAdmin)
                                                         {
                                                             <span> | <i class="bi bi-person"></i> By: @ticket.SubmittedBy</span>
                                                         }

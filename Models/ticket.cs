@@ -27,5 +27,23 @@ namespace SmartDesk.Models
 
         // Valeur par défaut null en cas d'omission de remplissage du chemin de la capture d'écran
         public string? ScreenshotPath { get; init;} = null;
-    }
+        public DateTime GetDeadline()
+{
+
+        if (Priority == "High")
+            {
+                return CreatedAt.AddHours(4);
+            }
+
+        if (Priority == "Medium")
+            {
+                return CreatedAt.AddHours(24);
+            }
+        
+        else 
+            {
+                return CreatedAt.AddHours(48);
+            }
+}
+}
 }
