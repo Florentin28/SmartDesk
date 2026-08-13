@@ -1,11 +1,13 @@
 @page "/tickets" 
 @rendermode InteractiveServer // rend la page interactive
+@implements IDisposable // Permet de libérer les ressources du timer quand on quitte la page
 
 @using SmartDesk.Models 
 @using SmartDesk.Data 
 @using Microsoft.EntityFrameworkCore 
 @using Microsoft.AspNetCore.Components.Forms @* Pour l'ajout de pièce jointe *@
 @using System.IO @* Pour les chemins de dossiers *@
+@using System.Timers @* Pour le timer sur les tickets *@
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
 @inject AppDbContext Context 
@@ -183,6 +185,9 @@
     private string newDescription = string.Empty; 
     private IBrowserFile? selectedFile; // Variable pour stocker le fichier sélectionné par l'utilisateur
     private string selectedFilter = "All";
+    private Timer? timer; // Timer pour rafraîchir la liste des tickets toutes les secondes
+
+    
  
     // Charge les tickets de la BDD sur la page 
     protected override async Task OnInitializedAsync() 
@@ -197,6 +202,10 @@
 
         // Chargement des tickets depuis la base de données
         await LoadTickets(); 
+
+        timer = new Timer(60000); // Timer qui se déclenche toutes les minutes (60000 ms)
+        timer.Elapsed += (sender, e) => InvokeAsync(StateHasChanged); // Déclenche un rafraîchissement de l'interface utilisateur
+        timer.Start(); // Démarre le timer
     }
 
     private async Task LoadTickets()
@@ -316,4 +325,12 @@
     selectedFile = e.File;
 }
 
+
+    public void Dispose() // Méthode pour libérer les ressources du timer
+    {
+            // Stop le timer et le détruit pour libérer de la RAM
+            timer?.Stop();
+            timer?.Dispose();
+        }
+    
 }
