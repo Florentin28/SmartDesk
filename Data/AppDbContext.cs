@@ -16,7 +16,22 @@ namespace SmartDesk.Data
         // DbSet<Ticket> Chaque ligne de la table Tickets dans la BDD sera une instance de la classe Ticket.
         public DbSet<Ticket> Tickets { get; set; }
 
-        // DbSet<Procedure> Chaque ligne de la table Procedures dans la BDD sera une instance de la classe Procedure.
         public DbSet<Procedure> Procedures { get; set; }
+
+        public DbSet<Question> Questions { get; set; }
+
+        public DbSet<Answer> Answers { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+        base.OnModelCreating(modelBuilder);
+
+        // Dit à la base de données de ne pas tout effacer en chaîne si on supprime une question
+         modelBuilder.Entity<Answer>()
+        .HasOne(a => a.NextQuestion)
+        .WithMany()
+        .HasForeignKey(a => a.NextQuestionId)
+        .OnDelete(DeleteBehavior.Restrict);
+}
     }
 }

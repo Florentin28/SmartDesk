@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+namespace SmartDesk.Data;
+using SmartDesk.Models;
+
+
 
 public static class IdentitySeeder
 {
@@ -87,4 +91,46 @@ public static class IdentitySeeder
         
  
     }
+
+    public static void SeedAkinator(AppDbContext context)
+{
+    // Si on a déjà des questions, on ne fait rien
+    if (context.Questions.Any()) return;
+
+    // 1. On crée les solutions finales (Procédures)
+    var procScreen = new Procedure { Title = "Vérifier les câbles", Content = "Débranchez et rebranchez le câble VGA/HDMI et l'alimentation de l'écran." };
+    var procMouse = new Procedure { Title = "Changer les piles", Content = "Remplacez les piles de la souris sans fil et vérifiez le dongle USB." };
+    var procNetwork = new Procedure { Title = "Redémarrer le routeur", Content = "Débranchez le routeur, attendez 30 secondes, puis rebranchez-le." };
+
+    context.Procedures.AddRange(procScreen, procMouse, procNetwork);
+    context.SaveChanges();
+
+    // 2. On crée les questions de notre arbre
+    var q1 = new Question { Text = "Quel est votre problème principal ?" };
+    var q2 = new Question { Text = "Votre écran s'allume-t-il (petite lumière visible) ?" };
+    var q3 = new Question { Text = "S'agit-il d'un problème matériel ou logiciel ?" };
+
+    context.Questions.AddRange(q1, q2, q3);
+    context.SaveChanges();
+
+    // 3. On crée les réponses (les ponts qui relient tout)
+    var answers = new List<Answer>
+    {
+        // Réponses à la Question 1
+        new Answer { Text = "Problème d'écran", QuestionId = q1.Id, NextQuestionId = q2.Id },
+        new Answer { Text = "Problème de souris", QuestionId = q1.Id, ProcedureId = procMouse.Id },
+        new Answer { Text = "Problème de réseau", QuestionId = q1.Id, ProcedureId = procNetwork.Id },
+        new Answer { Text = "Autre problème matériel", QuestionId = q1.Id, NextQuestionId = q3.Id },
+
+        // Réponses à la Question 2 (Suite de l'écran)
+        new Answer { Text = "Oui, mais il affiche 'No Signal'", QuestionId = q2.Id, ProcedureId = procScreen.Id },
+        new Answer { Text = "Non, aucune lumière", QuestionId = q2.Id, ProcedureId = procScreen.Id },
+
+        // Réponses à la Question 3 (Autre)
+        new Answer { Text = "C'est matériel, aidez-moi !", QuestionId = q3.Id, ProcedureId = procScreen.Id }
+    };
+
+    context.Answers.AddRange(answers);
+    context.SaveChanges();
+}
 }

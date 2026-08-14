@@ -3,6 +3,7 @@ using SmartDesk.Components; // importe les Pages et les layouts
 using Microsoft.AspNetCore.Identity; // Pour IdentityUser et IdentityRole
 using SmartDesk.Data;                // Pour AppDbContext
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Enregistre le service d'authentification pour gérer la session et la connexion des utilisateurs
@@ -43,6 +44,8 @@ using (var scope = app.Services.CreateScope())
 
     // Seed roles and admin user
     await IdentitySeeder.SeedRolesAndAdminAsync(services);
+
+    IdentitySeeder.SeedAkinator(dbContext);
 }
 
 
