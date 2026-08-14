@@ -1,0 +1,51 @@
+@page "/akinator"
+@inject SmartDesk.Data.AppDbContext DbContext
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using SmartDesk.Models
+
+
+<PageTitle>Akintator</PageTitle>
+
+@if (question != null)
+{
+
+<h3 class="fw-bold">Question : @question.Text</h3>
+
+
+@foreach (var answer in question.Answers)
+{
+    <button class="btn btn-primary m-2" @onclick="@(() => OnAnswerClick(answer))">
+        
+        @answer.Text
+    </button>
+
+}
+}
+
+
+
+
+@code {
+
+private Question? question;
+
+protected override async Task OnInitializedAsync(){
+    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
+}
+
+
+private async Task OnAnswerClick(Answer selectedAnswer){
+    if (selectedAnswer.NextQuestionId != null)
+    {
+        
+        question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == selectedAnswer.NextQuestionId);
+    }
+    
+}
+
+
+
+
+
+}
