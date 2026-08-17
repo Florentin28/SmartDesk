@@ -14,11 +14,15 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
             
-            @if (Auth.IsLoggedIn) // Vérifie si l'utilisateur  est connecté pour afficher le lien vers les tickets
+            @if (Auth.IsLoggedIn) // Vérifie si l'utilisateur  est connecté pour afficher le lien vers les tickets et akinator
         {
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="tickets">
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Tickets
+                </NavLink>
+
+                <NavLink class="nav-link" href="akinator">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Akinator
                 </NavLink>
             </div>
         }
