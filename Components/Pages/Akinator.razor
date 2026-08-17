@@ -12,8 +12,8 @@
     <h3 class="fw-bold">Procedure : @procedure.Title</h3>
     <p>@procedure.Content</p>
     <div class="mt-3">
-        <button class="btn btn-success m-2">Résolu</button>
-        <button class="btn btn-danger m-2">Non résolu</button>
+        <button class="btn btn-success m-2" @onclick="@(() => ProcedureResolved(procedure))">Résolu</button>
+        <button class="btn btn-danger m-2" @onclick="@(() => ProcedurenotResolved(procedure))">Non résolu</button>
     </div>
 
     
@@ -44,6 +44,7 @@ private Question? question;
 
 private Procedure? procedure;
 
+
 protected override async Task OnInitializedAsync(){
     question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
 }
@@ -52,11 +53,12 @@ protected override async Task OnInitializedAsync(){
 private async Task OnAnswerClick(Answer selectedAnswer){
     if (selectedAnswer.NextQuestionId != null)
     {
-        
+        // Si la réponse sélectionnée mène à une autre question, on charge cette question
         question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == selectedAnswer.NextQuestionId);
     }
     else if (selectedAnswer.ProcedureId != null)
     {
+        // Si la réponse sélectionnée mène à une procédure, on charge cette procédure
         procedure = await DbContext.Procedures.FirstOrDefaultAsync(p => p.Id == selectedAnswer.ProcedureId); // stocke la procédure sélectionnée
         question = null; // retire la question pour afficher la procédure
     }
@@ -64,6 +66,21 @@ private async Task OnAnswerClick(Answer selectedAnswer){
 }
 
 
+private async Task ProcedureResolved (Procedure procedure)
+{
+    procedure.SuccessCount++;
+    await DbContext.SaveChangesAsync();
+    procedure = null; // retire la procédure 
+    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
+
+
+}
+
+private async Task ProcedurenotResolved (Procedure procedure){
+    procedure = null; // retire la procédure 
+    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
+
+}
 
 
 
