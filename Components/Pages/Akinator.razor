@@ -8,9 +8,9 @@
 <PageTitle>Akinator</PageTitle>
 
 
-<input type="text" class="form-control mb-3" placeholder="Rechercher une procédure..." @bind="search" @oninput="SearchProcedures" />
+<input type="text" class="form-control mb-3" placeholder="Rechercher une procédure..." @bind="search" @onkeyup="HandleKeyPress" />
 <button class="btn btn-primary mb-3" @onclick="SearchProcedures">Rechercher</button>
-@if (procedures.Any())
+@if (procedures != null && procedures.Any())
 {
     <ul class="list-group mb-3">
         @foreach (var proc in procedures)
@@ -22,7 +22,7 @@
         }
     </ul>
 }
-else if (!string.IsNullOrWhiteSpace(search))
+else if (procedures != null && !procedures.Any())
 {
     <p>Aucune procédure trouvée.</p>
 }
@@ -65,8 +65,7 @@ private Question? question;
 private Procedure? procedure;
 
 private string? search;
-List<Procedure> procedures = new List<Procedure>();
-
+private List<Procedure>? procedures = null;
 
 protected override async Task OnInitializedAsync(){
     question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
@@ -118,7 +117,7 @@ private async Task SearchProcedures()
     }
     else
     {
-        procedures.Clear();    
+        procedures = null;   
     }
 }
 
@@ -126,7 +125,15 @@ private void SelectProcedureFromSearch(Procedure selectedProc)
 {
     procedure = selectedProc; // écrase la procédure actuelle avec celle sélectionnée
     question = null; // retire la question pour afficher la procédure
-    procedures.Clear(); // vide la liste des procédures après la sélection 
+    procedures = null; // vide la liste des procédures après la sélection
     search = ""; // vide le champ de recherche après la sélection
+}
+
+private async Task HandleKeyPress(KeyboardEventArgs e) // Gère l'événement de la touche "Entrée" pour déclencher la recherche
+{
+    if (e.Key == "Enter")
+    {
+        await SearchProcedures();
+    }
 }
 }
