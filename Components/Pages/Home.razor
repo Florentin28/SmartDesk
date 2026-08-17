@@ -29,13 +29,15 @@
                         </div>
                     </div>
 
-                    <!-- NOUVEAU : Le champ mot de passe -->
+                    <!-- Champ mot de passe -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Mot de passe</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-key"></i></span>
                             <input @bind="passwordInput" type="password" class="form-control" placeholder="********" />
                         </div>
+                        <div>employe@smartdesk.com / Smartdesk@2026
+                            tech@smartdesk.com / Smartdesk@2026</div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(errorMessage))

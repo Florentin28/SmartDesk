@@ -5,9 +5,21 @@
 @using SmartDesk.Models
 
 
-<PageTitle>Akintator</PageTitle>
+<PageTitle>Akinator</PageTitle>
 
-@if (question != null)
+@if (procedure != null)
+{
+    <h3 class="fw-bold">Procedure : @procedure.Title</h3>
+    <p>@procedure.Content</p>
+    <div class="mt-3">
+        <button class="btn btn-success m-2">Résolu</button>
+        <button class="btn btn-danger m-2">Non résolu</button>
+    </div>
+
+    
+}
+
+else if (question != null)
 {
 
 <h3 class="fw-bold">Question : @question.Text</h3>
@@ -30,6 +42,8 @@
 
 private Question? question;
 
+private Procedure? procedure;
+
 protected override async Task OnInitializedAsync(){
     question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
 }
@@ -40,6 +54,11 @@ private async Task OnAnswerClick(Answer selectedAnswer){
     {
         
         question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == selectedAnswer.NextQuestionId);
+    }
+    else if (selectedAnswer.ProcedureId != null)
+    {
+        procedure = await DbContext.Procedures.FirstOrDefaultAsync(p => p.Id == selectedAnswer.ProcedureId); // stocke la procédure sélectionnée
+        question = null; // retire la question pour afficher la procédure
     }
     
 }
