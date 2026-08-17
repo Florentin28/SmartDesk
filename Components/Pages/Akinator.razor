@@ -17,7 +17,7 @@
         {
             <li class="list-group-item">
                 <strong>@proc.Title</strong>
-                <p>@proc.Content</p>
+                <button class="btn btn-link" @onclick="@(() => SelectProcedureFromSearch(proc))">Voir la procédure</button>
             </li>
         }
     </ul>
@@ -118,9 +118,15 @@ private async Task SearchProcedures()
     }
     else
     {
-        procedures.Clear();
-    
-
+        procedures.Clear();    
+    }
 }
+
+private void SelectProcedureFromSearch(Procedure selectedProc)
+{
+    procedure = selectedProc; // écrase la procédure actuelle avec celle sélectionnée
+    question = null; // retire la question pour afficher la procédure
+    procedures.Clear(); // vide la liste des procédures après la sélection 
+    search = ""; // vide le champ de recherche après la sélection
 }
 }
