@@ -1,5 +1,7 @@
 @page "/akinator"
 @inject SmartDesk.Data.AppDbContext DbContext
+@* pour rediriger l'utilisateur vers les tickets et préremplir le ticket *@
+@inject NavigationManager NavManager 
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using SmartDesk.Models
@@ -100,9 +102,13 @@ private async Task ProcedureResolved ()
     }
 }
 
-private async Task ProcedurenotResolved (){
-    procedure = null; // retire la procédure 
-    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
+private void ProcedurenotResolved (){
+
+    if (procedure != null)
+    {
+        // On redirige vers la page /tickets en attachant l'ID de la procédure dans l'URL
+        NavManager.NavigateTo($"/tickets?procedureId={procedure.Id}");
+    }
 
 }
 
