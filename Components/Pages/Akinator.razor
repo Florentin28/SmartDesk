@@ -26,7 +26,31 @@
 }
 else if (procedures != null && !procedures.Any())
 {
-    <p>Aucune procédure trouvée.</p>
+    <div class="alert alert-warning">
+         
+        @if (missingFormSubmitted)
+        {
+            <div class="alert alert-success mt-2">
+                Merci ! Votre retour a été envoyé. Nos techniciens vont créer une procédure pour ce problème.
+            </div>
+        }
+        else if (!showMissingForm)
+        {
+            <p>Aucune procédure trouvée.</p>
+            <button class="btn btn-warning mt-2" @onclick="() => showMissingForm = true">
+                Je ne trouve pas de solution à mon problème
+            </button>
+        }
+        else
+        {
+            <div class="mt-3">
+                <label class="form-label">Pouvez-vous décrire brièvement votre problème ?</label>
+                <textarea class="form-control mb-2" rows="3" @bind="missingDescription"></textarea>
+                <button class="btn btn-success" @onclick="SubmitMissingProcedure">Envoyer au support</button>
+                <button class="btn btn-secondary" @onclick="() => showMissingForm = false">Annuler</button>
+            </div>
+        }
+    </div>
 }
 
 @if (procedure != null)
@@ -36,6 +60,9 @@ else if (procedures != null && !procedures.Any())
     <div class="mt-3">
         <button class="btn btn-success m-2" @onclick="@(() => ProcedureResolved())">Résolu</button>
         <button class="btn btn-danger m-2" @onclick="@(() => ProcedurenotResolved())">Non résolu</button>
+        <button class="btn btn-warning mt-2" @onclick="ProcedureNotRelevant">
+            Cette procédure ne correspond pas à mon problème
+        </button>
     </div>
 
     
@@ -68,6 +95,10 @@ private Procedure? procedure;
 
 private string? search;
 private List<Procedure>? procedures = null;
+
+private bool showMissingForm = false; // pour afficher le formulaire de demande de procédure manquante
+private bool missingFormSubmitted = false; // pour afficher le message de succès après soumission du formulaire
+private string missingDescription = string.Empty; // pour stocker la description de la procédure manquante que l'utilisateur va taper
 
 protected override async Task OnInitializedAsync(){
     question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
@@ -112,6 +143,19 @@ private void ProcedurenotResolved (){
 
 }
 
+private void ProcedureNotRelevant() // Si l'utilisateur indique que la procédure n'est pas pertinente, on réinitialise l'état
+{
+    // On vide la liste des procédures 
+    procedures = new List<Procedure>(); 
+    
+    // On indique qu'on veut afficher le formulaire de "Missing Procedure"
+    showMissingForm = true;
+    missingFormSubmitted = false;
+    
+    // On efface la procédure actuellement sélectionnée pour nettoyer l'écran
+    procedure = null; 
+}
+
 
 private async Task SearchProcedures()
 {
@@ -140,6 +184,28 @@ private async Task HandleKeyPress(KeyboardEventArgs e) // Gère l'événement de
     if (e.Key == "Enter")
     {
         await SearchProcedures();
+    }
+}
+
+private async Task SubmitMissingProcedure()
+{
+    if (!string.IsNullOrWhiteSpace(missingDescription))
+    {
+        var newMissingProc = new MissingProcedure
+        {
+            Description = missingDescription,
+            SearchKeyword = string.IsNullOrWhiteSpace(search) ? null : search,
+            CreatedAt = DateTime.Now,
+            IsResolved = false
+        };
+
+        DbContext.MissingProcedures.Add(newMissingProc);
+        await DbContext.SaveChangesAsync();
+
+        // On affiche le message de succès et on vide le formulaire
+        missingFormSubmitted = true;
+        showMissingForm = false;
+        missingDescription = string.Empty;
     }
 }
 }
