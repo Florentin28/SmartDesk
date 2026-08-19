@@ -10,10 +10,11 @@
 @using System.Timers @* Pour le timer sur les tickets *@
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
-@inject AppDbContext Context 
+@inject SmartDesk.Data.AppDbContext DbContext
 
 @* Injecte l'environnement d'hébergement *@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+
 
 <div class="container mt-4">
     
@@ -186,6 +187,9 @@
     private string selectedFilter = "All";
     private Timer? timer; // Timer pour rafraîchir la liste des tickets toutes les secondes
 
+[SupplyParameterFromQuery]
+public int? ProcedureId { get; set; } // Permet de récupérer l'ID de la procédure depuis l'URL pour pré-remplir le ticket
+
     
  
     // Charge les tickets de la BDD sur la page 
@@ -199,6 +203,21 @@
             return;
         }
 
+            // Si l'URL contient un ID de procédure...
+        if (ProcedureId.HasValue)
+        {
+            // 1. On va chercher la procédure en base de données
+            var failedProcedure = await DbContext.Procedures.FindAsync(ProcedureId.Value);
+            
+            if (failedProcedure != null)
+            {
+                // 2. On pré-remplit l'objet Ticket (adapte 'newTicket' avec le nom de TA variable de création)
+                newTitle = $"Suite à la procédure : {failedProcedure.Title}";
+                newDescription = $"J'ai bien tenté d'appliquer les étapes suivantes sans succès :\n\n{failedProcedure.Content}";
+                            
+            }
+        }
+
         // Chargement des tickets depuis la base de données
         await LoadTickets(); 
 
@@ -209,7 +228,7 @@
 
     private async Task LoadTickets()
     {
-        IQueryable<Ticket> query = Context.Tickets; @* Prépare la requête SQL des tickets *@
+        IQueryable<Ticket> query = DbContext.Tickets; @* Prépare la requête SQL des tickets *@
 
         if (!Auth.IsTechnician && !Auth.IsAdmin)
         {
@@ -269,8 +288,8 @@
             ScreenshotPath = imagePath
         };
         
-        Context.Tickets.Add(ticket); @* Insère le ticket dans la BDD *@
-        await Context.SaveChangesAsync(); 
+        DbContext.Tickets.Add(ticket); @* Insère le ticket dans la BDD *@
+        await DbContext.SaveChangesAsync(); 
 
         newTitle = string.Empty; @* Réinitialise les champs *@
         newDescription = string.Empty;
@@ -283,7 +302,7 @@
     {
         if (string.IsNullOrEmpty(nextStatus)) return;
         ticket.Status = nextStatus;
-        await Context.SaveChangesAsync();
+        await DbContext.SaveChangesAsync();
 
         // Si un filtre actif est sélectionné, on rafraîchit la liste pour réorganiser les éléments
         if (selectedFilter != "All")
@@ -297,7 +316,7 @@
     {
         if (string.IsNullOrEmpty(nextPriority)) return;
         ticket.Priority = nextPriority;
-        await Context.SaveChangesAsync();
+        await DbContext.SaveChangesAsync();
     }
 
     // Change la couleur de fond du ticket suivant son Statut
