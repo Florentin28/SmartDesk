@@ -22,6 +22,8 @@ namespace SmartDesk.Data
 
         public DbSet<Answer> Answers { get; set; }
 
+        public DbSet<MissingProcedure> MissingProcedures { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
         base.OnModelCreating(modelBuilder);
