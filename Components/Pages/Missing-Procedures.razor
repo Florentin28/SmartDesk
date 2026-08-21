@@ -1,0 +1,94 @@
+@page "/missing-procedures"
+@rendermode InteractiveServer
+
+@using SmartDesk.Models
+@using Microsoft.EntityFrameworkCore
+@inject SmartDesk.Data.AppDbContext DbContext
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>📋 Procédures manquantes</h3>
+    </div>
+
+    @if (missingprocedure == null)
+    {
+        <div class="d-flex align-items-center gap-2 text-muted">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span>Chargement des données...</span>
+        </div>
+    }
+    else if (!missingprocedure.Any())
+    {
+        <div class="alert alert-info">
+            Aucune procédure manquante signalée.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Mot clé</th>
+                        <th>Description</th>
+                        <th>Date de création</th>
+                        <th>Statut</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var proc in missingprocedure)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@proc.SearchKeyword</td>
+                            <td>@proc.Description</td>
+                            <td>@proc.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (proc.IsResolved)
+                                {
+                                    <span class="badge bg-success">Résolu</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">En attente</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm @(proc.IsResolved ? "btn-outline-secondary" : "btn-success") me-1"
+                                        @onclick="@(() => MarkAsResolved(proc))">
+                                    @(proc.IsResolved ? "Marquer non résolu" : "Marquer résolu")
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        @onclick="@(() => DeleteMissingProcedure(proc))">
+                                    Supprimer
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<MissingProcedure>? missingprocedure = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        missingprocedure = await DbContext.MissingProcedures.ToListAsync();
+    }
+
+    protected async Task DeleteMissingProcedure(MissingProcedure missingProcedure)
+    {
+        DbContext.MissingProcedures.Remove(missingProcedure);
+        await DbContext.SaveChangesAsync();
+        missingprocedure?.Remove(missingProcedure);
+    }
+
+    protected async Task MarkAsResolved(MissingProcedure missingProcedure)
+    {
+        missingProcedure.IsResolved = !missingProcedure.IsResolved;
+        await DbContext.SaveChangesAsync();
+    }
+}

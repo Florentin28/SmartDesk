@@ -187,8 +187,8 @@
     private string selectedFilter = "All";
     private Timer? timer; // Timer pour rafraîchir la liste des tickets toutes les secondes
 
-[SupplyParameterFromQuery]
-public int? ProcedureId { get; set; } // Permet de récupérer l'ID de la procédure depuis l'URL pour pré-remplir le ticket
+    [SupplyParameterFromQuery] // Permet de récupérer l'ID de la procédure depuis l'URL pour pré-remplir le ticket
+    public int? ProcedureId { get; set; } 
 
     
  
