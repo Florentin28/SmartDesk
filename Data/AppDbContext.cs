@@ -23,6 +23,7 @@ namespace SmartDesk.Data
         public DbSet<Answer> Answers { get; set; }
 
         public DbSet<MissingProcedure> MissingProcedures { get; set; }
+        public DbSet<Feedback> Feedbacks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
