@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore; // importe le framework de microsoft pour l
 using SmartDesk.Components; // importe les Pages et les layouts 
 using Microsoft.AspNetCore.Identity; // Pour IdentityUser et IdentityRole
 using SmartDesk.Data;                // Pour AppDbContext
+using SmartDesk.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +30,7 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
 .AddRoles<IdentityRole>() // différencier technicien de employé
 .AddEntityFrameworkStores<AppDbContext>(); // relier Identity au fichier SQlite
 
-
+builder.Services.AddScoped<EmailService>(); // pour l'envoi de mail
 
 var app = builder.Build();
 

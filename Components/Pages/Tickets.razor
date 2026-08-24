@@ -8,12 +8,16 @@
 @using Microsoft.AspNetCore.Components.Forms @* Pour l'ajout de pièce jointe *@
 @using System.IO @* Pour les chemins de dossiers *@
 @using System.Timers @* Pour le timer sur les tickets *@
+
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
 @inject SmartDesk.Data.AppDbContext DbContext
 
 @* Injecte l'environnement d'hébergement *@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+
+
+@inject SmartDesk.Services.EmailService EmailService
 
 
 <div class="container mt-4">
@@ -176,6 +180,28 @@
             </div>
         </div>
     }
+
+@if (showConfirmModal && ticketToResolve != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 9999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Clôturer le ticket</h5>
+                    <button type="button" class="btn-close" @onclick="CancelResolve"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p>Marquer le ticket <strong>#@ticketToResolve.Id - @ticketToResolve.Title</strong> comme <strong>Résolu</strong> ?</p>
+                    <p class="text-muted small">E-mail envoyé à : <strong>@ticketToResolve.SubmittedBy</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelResolve">Annuler</button>
+                    <button type="button" class="btn btn-success" @onclick="ConfirmResolveTicket">Confirmer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 </div>
 
 @code {
@@ -189,6 +215,9 @@
 
     [SupplyParameterFromQuery] // Permet de récupérer l'ID de la procédure depuis l'URL pour pré-remplir le ticket
     public int? ProcedureId { get; set; } 
+
+    private bool showConfirmModal = false;
+    private Ticket? ticketToResolve;
 
     
  
@@ -298,18 +327,26 @@
     }
 
     // Mettre à jour le statut d'un ticket 
-    private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
-    {
-        if (string.IsNullOrEmpty(nextStatus)) return;
-        ticket.Status = nextStatus;
-        await DbContext.SaveChangesAsync();
+private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
+{
+    if (string.IsNullOrEmpty(nextStatus)) return;
 
-        // Si un filtre actif est sélectionné, on rafraîchit la liste pour réorganiser les éléments
-        if (selectedFilter != "All")
-        {
-            await LoadTickets();
-        }
+    if (nextStatus == "Resolved")
+    {
+        ticketToResolve = ticket;
+        showConfirmModal = true;
+        StateHasChanged(); // force l'affichage
+        return;
     }
+
+    ticket.Status = nextStatus;
+    await DbContext.SaveChangesAsync();
+
+    if (selectedFilter != "All")
+    {
+        await LoadTickets();
+    }
+}
 
     // Met à jour la priorité du ticket 
     private async Task UpdateTicketPriority(Ticket ticket, string? nextPriority)
@@ -379,6 +416,39 @@
 
     }
     
+}
+
+private void CancelResolve()
+{
+    showConfirmModal = false;
+    ticketToResolve = null;
+    StateHasChanged(); // Rafraîchit l'affichage pour réinitialiser le select si besoin
+}
+
+private async Task ConfirmResolveTicket()
+{
+    if (ticketToResolve == null) return;
+
+    // 1. Mise à jour du statut en base de données
+    ticketToResolve.Status = "Resolved";
+    await DbContext.SaveChangesAsync();
+
+    // 2. Envoi du mail de notification au demandeur
+    if (!string.IsNullOrEmpty(ticketToResolve.SubmittedBy))
+    {
+        string subject = $"[SmartDesk] Votre ticket #{ticketToResolve.Id} est résolu !";
+        string body = $"Bonjour,\n\n" +
+                      $"Votre ticket #{ticketToResolve.Id} ('{ticketToResolve.Title}') vient d'être marqué comme résolu par le support technique.\n\n" +
+                      $"Détails du problème résolu :\n{ticketToResolve.Description}\n\n" +
+                      $"Merci d'avoir fait appel au support SmartDesk !";
+
+        await EmailService.SendEmailAsync(ticketToResolve.SubmittedBy, subject, body);
+    }
+
+    // 3. Fermeture du modal et rafraîchissement
+    showConfirmModal = false;
+    ticketToResolve = null;
+    await LoadTickets();
 }
     
 }
