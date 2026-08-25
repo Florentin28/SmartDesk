@@ -34,7 +34,7 @@ public class EmailService
             From = new MailAddress(senderEmail, "SmartDesk Support"),
             Subject = subject,
             Body = body,
-            IsBodyHtml = false
+            IsBodyHtml = true // pour que l'utilisateur puisse cliquer sur le lien dans le mail
         };
         mailMessage.To.Add(toEmail);
 

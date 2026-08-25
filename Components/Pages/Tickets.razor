@@ -220,6 +220,8 @@
     private Ticket? ticketToResolve;
 
     
+
+    
  
     // Charge les tickets de la BDD sur la page 
     protected override async Task OnInitializedAsync() 
@@ -437,10 +439,23 @@ private async Task ConfirmResolveTicket()
     if (!string.IsNullOrEmpty(ticketToResolve.SubmittedBy))
     {
         string subject = $"[SmartDesk] Votre ticket #{ticketToResolve.Id} est résolu !";
-        string body = $"Bonjour,\n\n" +
-                      $"Votre ticket #{ticketToResolve.Id} ('{ticketToResolve.Title}') vient d'être marqué comme résolu par le support technique.\n\n" +
-                      $"Détails du problème résolu :\n{ticketToResolve.Description}\n\n" +
-                      $"Merci d'avoir fait appel au support SmartDesk !";
+        string feedbackUrl = $"{Navigation.BaseUri}feedback/{ticketToResolve.Id}";
+       string body = $@"
+            <div style=""font-family: Arial, sans-serif; line-height: 1.6;"">
+                <h3 style=""color: #198754;"">Bonjour,</h3>
+                <p>Votre ticket <strong>#{ticketToResolve.Id}</strong> (<em>{ticketToResolve.Title}</em>) vient d'être marqué comme résolu par le support technique.</p>
+                <hr />
+                <p><strong>Description du problème :</strong><br />{ticketToResolve.Description}</p>
+                <br />
+                <p>Votre avis compte beaucoup pour nous ! Merci de prendre quelques secondes pour évaluer notre intervention :</p>
+                <p>
+                    <a href=""{feedbackUrl}"" style=""background-color: #0d6efd; color: white; padding: 10px 18px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;"">
+                        Donner mon avis sur cette intervention
+                    </a>
+                </p>
+                <br />
+                <p style=""color: #6c757d; font-size: 0.9em;"">Merci d'avoir fait appel au support SmartDesk !</p>
+            </div>";
 
         await EmailService.SendEmailAsync(ticketToResolve.SubmittedBy, subject, body);
     }

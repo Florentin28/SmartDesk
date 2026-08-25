@@ -1,0 +1,110 @@
+@page "/feedback/{TicketId:int}"
+@rendermode InteractiveServer
+
+@using SmartDesk.Models
+@using Microsoft.EntityFrameworkCore
+@inject SmartDesk.Data.AppDbContext DbContext
+@inject NavigationManager NavManager
+
+
+<PageTitle>Feedback</PageTitle>
+
+@if (feedbackJustSubmitted)
+{
+    @* Message affiché immédiatement après l'envoi *@
+    <div class="card shadow-sm border-0 text-center p-5">
+        <div class="mb-3">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+        </div>
+        <h3 class="text-success fw-bold">Merci pour votre retour !</h3>
+        <p class="text-muted">Votre avis a bien été enregistré. Il aide nos équipes à améliorer le support au quotidien.</p>
+    </div>
+}
+else if (feedbackAlreadyExists)
+{
+    @* Message affiché si la personne revient sur le lien alors qu'elle a déjà voté dans le passé *@
+    <div class="card shadow-sm border-0 text-center p-5">
+        <div class="mb-3">
+            <i class="bi bi-info-circle-fill text-primary" style="font-size: 3rem;"></i>
+        </div>
+        <h4 class="fw-bold">Avis déjà enregistré</h4>
+        <p class="text-muted">Vous avez déjà envoyé un retour pour ce ticket. Merci pour votre participation !</p>
+    </div>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold py-3">
+                    Donner votre avis sur le ticket #@ticket.Id - @ticket.Title
+                </div>
+                <div class="card-body p-4">
+                    @* Choix de satisfaction (Pouce haut / Pouce bas) *@
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-semibold d-block mb-3">Votre niveau de satisfaction :</label>
+                        <div class="btn-group" role="group">
+                            <button type="button" 
+                                    class="btn @(newFeedback.IsSatisfied ? "btn-success" : "btn-outline-success") px-4 py-2"
+                                    @onclick="() => newFeedback.IsSatisfied = true">
+                                <i class="bi bi-hand-thumbs-up-fill fs-4"></i><br />
+                                Satisfait
+                            </button>
+                            <button type="button" 
+                                    class="btn @(!newFeedback.IsSatisfied ? "btn-danger" : "btn-outline-danger") px-4 py-2"
+                                    @onclick="() => newFeedback.IsSatisfied = false">
+                                <i class="bi bi-hand-thumbs-down-fill fs-4"></i><br />
+                                Insatisfait
+                            </button>
+                        </div>
+                    </div>
+
+                    @* Commentaire *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Votre commentaire</label>
+                        <textarea class="form-control" rows="3" placeholder="Expliquez votre retour..." @bind="newFeedback.Commentaire"></textarea>
+                    </div>
+
+                    @* Bouton d'envoi *@
+                    <button class="btn btn-primary w-100 btn-lg fw-bold mt-2" @onclick="SendFeedback">
+                        Envoyer le feedback
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int TicketId { get; set; }
+
+    private Ticket? ticket;
+    private SmartDesk.Models.Feedback newFeedback = new SmartDesk.Models.Feedback { IsSatisfied = true };
+    private bool feedbackAlreadyExists = false; // pour afficher un message d'erreur si le feedback existe déjà
+    private bool feedbackJustSubmitted = false; // pour afficher un message de succès après l'envoi du feedback
+    protected override async Task OnInitializedAsync()
+    {
+        ticket = await DbContext.Tickets.FindAsync(TicketId);
+
+        if (ticket != null)
+        {
+            feedbackAlreadyExists = await DbContext.Feedbacks.AnyAsync(f => f.TicketId == TicketId);
+        }
+    }
+
+   private async Task SendFeedback()
+{
+    // 1. Associer l'ID du ticket au feedback 🎫
+    newFeedback.TicketId = TicketId;
+
+    // 2. Ajouter le feedback directement au DbSet de la base de données ➕
+    DbContext.Feedbacks.Add(newFeedback);
+
+    // 3. Enregistrer les modifications de manière asynchrone 💾
+    await DbContext.SaveChangesAsync();
+
+    // 4. Mettre à jour l'état d'affichage ✅
+    feedbackJustSubmitted = true;
+}
+}
