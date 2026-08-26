@@ -27,6 +27,10 @@ namespace SmartDesk.Models
 
         // Valeur par défaut null en cas d'omission de remplissage du chemin de la capture d'écran
         public string? ScreenshotPath { get; init;} = null;
+
+        // Date et heure de résolution du ticket
+        public DateTime? ResolvedAt { get; set; }
+        
         public DateTime GetDeadline()
 {
 

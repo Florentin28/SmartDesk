@@ -3,14 +3,18 @@
 
 @* --- INJECTIONS ET DÉPENDANCES --- *@
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using SmartDesk.Models
+@using SmartDesk.Data
+
 @inject UserManager<IdentityUser> UserManager
 @inject SmartDesk.Services.AuthService Auth
 @inject NavigationManager Navigation
+@inject SmartDesk.Data.AppDbContext DbContext
 
 <PageTitle>Home - SmartDesk</PageTitle>
 
 <div class="container mt-4">
-    
     @if (!Auth.IsLoggedIn)
     {
         <!-- 1. SI L'UTILISATEUR N'EST PAS CONNECTÉ -->
@@ -20,7 +24,6 @@
                     <h3 class="m-0 fw-bold"><i class="bi bi-shield-lock"></i> Connexion SmartDesk</h3>
                 </div>
                 <div class="card-body p-4">
-                    
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Adresse mail</label>
                         <div class="input-group">
@@ -29,15 +32,16 @@
                         </div>
                     </div>
 
-                    <!-- Champ mot de passe -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Mot de passe</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-key"></i></span>
                             <input @bind="passwordInput" type="password" class="form-control" placeholder="********" />
                         </div>
-                        <div>employe@smartdesk.com / Smartdesk@2026
-                            tech@smartdesk.com / Smartdesk@2026</div>
+                        <div class="text-muted small mt-2">
+                            employe@smartdesk.com / Smartdesk@2026<br />
+                            tech@smartdesk.com / Smartdesk@2026
+                        </div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(errorMessage))
@@ -52,18 +56,168 @@
             </div>
         </div>
     }
-    else if (Auth.IsTechnician)
+    else if (Auth.IsTechnician || Auth.IsAdmin)
     {
-        <!-- 2. SI L'UTILISATEUR EST UN TECHNICIEN -->
-        <div class="card shadow-sm border-0 p-5 text-center my-5">
-            <i class="bi bi-speedometer2 display-1 text-primary mb-3"></i>
-            <h2 class="fw-bold">Espace Technicien SmartDesk</h2>
-            <p class="text-muted px-md-5">Bienvenue dans votre espace d'administration.</p>
-            <div class="d-flex justify-content-center gap-3 mt-4">
-                <a href="tickets" class="btn btn-primary btn-lg fw-bold px-4">
-                    <i class="bi bi-ticket-detailed me-2"></i>Accéder aux Tickets
+        <!-- 2. ESPACE TECHNICIEN / ADMIN (DASHBOARD) -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-0">Tableau de bord 🛠️</h2>
+                <p class="text-muted mb-0">Vue d'ensemble de l'activité du support</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="tickets" class="btn btn-primary fw-bold">
+                    <i class="bi bi-ticket-detailed me-1"></i> Gérer les tickets
                 </a>
-                <button @onclick="HandleLogout" class="btn btn-outline-danger btn-lg fw-bold px-4">Déconnexion</button>
+                <button @onclick="HandleLogout" class="btn btn-outline-danger fw-bold">
+                    <i class="bi bi-box-arrow-right me-1"></i> Déconnexion
+                </button>
+            </div>
+        </div>
+
+        <!-- Cartes d'indicateurs -->
+        <div class="row g-3 mb-4">
+            <!-- Carte 1 : Total Tickets -->
+            <div class="col-12 col-sm-6 col-lg">
+                <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Total</span>
+                                <h3 class="fw-bold my-1">@totalTickets</h3>
+                            </div>
+                            <i class="bi bi-ticket-detailed text-primary fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carte 2 : Nouveaux -->
+            <div class="col-12 col-sm-6 col-lg">
+                <div class="card shadow-sm border-0 border-start border-secondary border-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Nouveaux</span>
+                                <h3 class="fw-bold my-1">@newTickets</h3>
+                            </div>
+                            <i class="bi bi-envelope-plus text-secondary fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carte 3 : En cours -->
+            <div class="col-12 col-sm-6 col-lg">
+                <div class="card shadow-sm border-0 border-start border-warning border-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">En cours</span>
+                                <h3 class="fw-bold my-1">@inProgressTickets</h3>
+                            </div>
+                            <i class="bi bi-hourglass-split text-warning fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carte 4 : Résolus -->
+            <div class="col-12 col-sm-6 col-lg">
+                <div class="card shadow-sm border-0 border-start border-success border-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Résolus</span>
+                                <h3 class="fw-bold my-1">@resolvedTickets</h3>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carte 5 : Taux de résolution -->
+            <div class="col-12 col-sm-6 col-lg">
+                <div class="card shadow-sm border-0 border-start border-info border-4 h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Taux Résolution</span>
+                                <h3 class="fw-bold my-1">@resolutionRate.ToString("0.#") %</h3>
+                            </div>
+                            <i class="bi bi-pie-chart-fill text-info fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Retours Utilisateurs (Feedbacks) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-chat-heart text-danger me-2"></i>Retours Utilisateurs (@FilteredFeedbacks.Count())
+                </h5>
+
+                <!-- Boutons de filtrage -->
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" 
+                            class="btn @(currentFilter == "all" ? "btn-dark" : "btn-outline-secondary")"
+                            @onclick='() => currentFilter = "all"'>
+                        Tous 📋
+                    </button>
+                    <button type="button" 
+                            class="btn @(currentFilter == "positive" ? "btn-success" : "btn-outline-success")"
+                            @onclick='() => currentFilter = "positive"'>
+                        <i class="bi bi-hand-thumbs-up-fill me-1"></i>Satisfaits
+                    </button>
+                    <button type="button" 
+                            class="btn @(currentFilter == "negative" ? "btn-danger" : "btn-outline-danger")"
+                            @onclick='() => currentFilter = "negative"'>
+                        <i class="bi bi-hand-thumbs-down-fill me-1"></i>Insatisfaits
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                @if (!FilteredFeedbacks.Any())
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        <p class="mb-0">Aucun feedback dans cette catégorie pour le moment.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var fb in FilteredFeedbacks)
+                        {
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card h-100 border-0 shadow-sm border-start @(fb.IsSatisfied ? "border-success" : "border-danger") border-4 bg-light">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge @(fb.IsSatisfied ? "bg-success" : "bg-danger")">
+                                                <i class="bi @(fb.IsSatisfied ? "bi-hand-thumbs-up-fill" : "bi-hand-thumbs-down-fill") me-1"></i>
+                                                @(fb.IsSatisfied ? "Satisfait" : "Insatisfait")
+                                            </span>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock me-1"></i>@fb.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                            </small>
+                                        </div>
+
+                                        <h6 class="fw-bold text-truncate mb-2">
+                                            <span class="text-secondary">#@fb.TicketId</span> @(fb.Ticket?.Title ?? "Ticket supprimé")
+                                        </h6>
+
+                                        <p class="card-text text-secondary small fst-italic mb-0">
+                                            @(string.IsNullOrWhiteSpace(fb.Commentaire) ? "Aucun commentaire laissé." : $"« {fb.Commentaire} »")
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     }
@@ -83,15 +237,64 @@
 </div>
 
 @code {
-    // --- 1. VARIABLES D'ÉTAT ---
+    // --- 1. VARIABLES D'ÉTAT (Connexion) ---
     private string emailInput = string.Empty; 
     private string passwordInput = string.Empty;
     private string errorMessage = string.Empty; 
 
-    // --- 2. GESTION DES ÉVÉNEMENTS ---
+    // --- 2. VARIABLES D'ÉTAT (Statistiques Dashboard) ---
+    private int totalTickets = 0;
+    private int newTickets = 0;
+    private int inProgressTickets = 0;
+    private int resolvedTickets = 0;
+    private double resolutionRate = 0.0;
+
+    // --- 3. VARIABLES D'ÉTAT (Feedbacks) ---
+    private List<Feedback> feedbacks = new();
+    private string currentFilter = "all"; // "all", "positive", "negative"
+
+    private IEnumerable<Feedback> FilteredFeedbacks => currentFilter switch
+    {
+        "positive" => feedbacks.Where(f => f.IsSatisfied),
+        "negative" => feedbacks.Where(f => !f.IsSatisfied),
+        _ => feedbacks
+    };
+
+    // --- 4. INITIALISATION DU COMPOSANT ---
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.IsLoggedIn && (Auth.IsTechnician || Auth.IsAdmin))
+        {
+            await LoadDashboardMetricsAsync();
+        }
+    }
+
+    private async Task LoadDashboardMetricsAsync()
+    {
+        totalTickets = await DbContext.Tickets.CountAsync();
+        newTickets = await DbContext.Tickets.CountAsync(t => t.Status == "New");
+        inProgressTickets = await DbContext.Tickets.CountAsync(t => t.Status == "In Progress");
+        resolvedTickets = await DbContext.Tickets.CountAsync(t => t.Status == "Resolved");
+
+        if (totalTickets > 0)
+        {
+            resolutionRate = (double)resolvedTickets / totalTickets * 100;
+        }
+
+        await LoadFeedbacksAsync();
+    }
+
+    private async Task LoadFeedbacksAsync()
+    {
+        feedbacks = await DbContext.Feedbacks
+            .Include(f => f.Ticket)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+    }
+
+    // --- 5. GESTION DES ÉVÉNEMENTS ---
     private async Task HandleLogin()
     {
-        // 1. Vérification basique
         if (string.IsNullOrWhiteSpace(emailInput) || string.IsNullOrWhiteSpace(passwordInput))
         {
             errorMessage = "Veuillez remplir tous les champs.";
@@ -100,24 +303,20 @@
 
         errorMessage = string.Empty; 
 
-        // 2. Vérification dans la base de données (Le vigile)
         var user = await UserManager.FindByEmailAsync(emailInput);
-        
         if (user == null)
         {
-            errorMessage = "Identifiants incorrects."; // Message générique pour des raisons de sécurité
+            errorMessage = "Identifiants incorrects.";
             return;
         }
 
         var isPasswordValid = await UserManager.CheckPasswordAsync(user, passwordInput);
-        
         if (!isPasswordValid)
         {
             errorMessage = "Identifiants incorrects."; 
             return;
         }
 
-        // 3. SUCCÈS : On connecte l'utilisateur dans ton système visuel (AuthService)
         Auth.Login(emailInput); 
         Navigation.NavigateTo("/", forceLoad: true);
     }
