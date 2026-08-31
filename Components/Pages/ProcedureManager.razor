@@ -1,0 +1,158 @@
+@page "/admin/procedures"
+@inject SmartDesk.Data.AppDbContext DbContext
+@inject SmartDesk.Services.AuthService Auth 
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using SmartDesk.Models
+
+<PageTitle>Gestion des Procédures</PageTitle>
+
+<div class="container mt-4">
+    @if (Auth.IsAdmin || Auth.IsTechnician)
+    {
+        <h2 class="mb-4">🛠️ Gestion des Procédures (Solutions)</h2>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        <!-- BLOC 1 : Formulaire d'ajout -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Ajouter une nouvelle solution finale</h5>
+            </div>
+            <div class="card-body">
+                <input type="text" class="form-control mb-3" placeholder="Titre (ex: Redémarrer le routeur)" @bind="newProcedure.Title" />
+                <textarea class="form-control mb-3" rows="3" placeholder="Description de la solution étape par étape..." @bind="newProcedure.Content"></textarea>
+                <button class="btn btn-success" @onclick="AddProcedure">Enregistrer la procédure</button>
+            </div>
+        </div>
+
+        <!-- BLOC 2 : Liste des procédures existantes -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Catalogue des procédures existantes</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (procedures != null && procedures.Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach(var proc in procedures)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="fs-5">@proc.Title</strong>
+                                    <p class="mb-0 text-muted">@proc.Content</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-success rounded-pill px-3 py-2">
+                                        Aides : @proc.SuccessCount
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OpenDeleteModal(proc)">
+                                        Supprimer
+                                    </button>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="p-3 text-muted">Aucune procédure n'a encore été créée.</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- BOÎTE DE DIALOGUE VISUELLE (MODAL) -->
+@if (showDeleteModal && procedureToDelete != null)
+{
+    <div class="modal show fade d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">⚠️ Confirmation de suppression</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir supprimer la procédure <strong>"@procedureToDelete.Title"</strong> ?</p>
+                    <p class="text-muted small mb-0">Cette action est irréversible.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Annuler</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Oui, supprimer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Procedure> procedures = new();
+    private Procedure newProcedure = new();
+    private string? successMessage;
+
+    // Gestion du Modal de suppression
+    private bool showDeleteModal = false;
+    private Procedure? procedureToDelete = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAdmin && !Auth.IsTechnician)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await LoadProcedures();
+    }
+
+    private async Task LoadProcedures()
+    {
+        procedures = await DbContext.Procedures.OrderByDescending(p => p.Id).ToListAsync();
+    }
+
+    private async Task AddProcedure()
+    {
+        if (!string.IsNullOrWhiteSpace(newProcedure.Title) && !string.IsNullOrWhiteSpace(newProcedure.Content))
+        {
+            DbContext.Procedures.Add(newProcedure);
+            await DbContext.SaveChangesAsync();
+            
+            newProcedure = new Procedure(); 
+            successMessage = "La procédure a été créée avec succès ! 🎉";
+            await LoadProcedures(); 
+        }
+    }
+
+    private void OpenDeleteModal(Procedure proc)
+    {
+        procedureToDelete = proc;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        procedureToDelete = null;
+        showDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (procedureToDelete != null)
+        {
+            DbContext.Procedures.Remove(procedureToDelete);
+            await DbContext.SaveChangesAsync();
+            
+            successMessage = "La procédure a été supprimée avec succès. 🗑️";
+            CloseDeleteModal();
+            await LoadProcedures();
+        }
+    }
+}

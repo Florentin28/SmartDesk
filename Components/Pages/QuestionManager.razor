@@ -1,0 +1,320 @@
+@page "/admin/questions"
+@inject SmartDesk.Data.AppDbContext DbContext
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using SmartDesk.Models
+@inject NavigationManager Navigation
+@inject SmartDesk.Services.AuthService Auth 
+
+<PageTitle>Gestion des Questions</PageTitle>
+
+<div class="container mt-4">
+    <h2 class="mb-4">🛠️ Gestion de l'Arbre de Décision (Akinator)</h2>
+
+    <!-- Formulaire d'ajout de question -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Créer une nouvelle question</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <input type="text" class="form-control" placeholder="Intitulé de la question..." @bind="newQuestionText" />
+            </div>
+            <button class="btn btn-success" @onclick="CreateQuestion">Ajouter la question</button>
+        </div>
+    </div>
+
+    <!-- Liste des questions existantes -->
+    @if (questions != null)
+    {
+        @foreach (var q in questions)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">ID @q.Id : @q.Text</h5>
+                    <button class="btn btn-sm btn-outline-light text-danger bg-white" @onclick="() => OpenDeleteQuestionModal(q)">Supprimer la question</button>
+                </div>
+                <div class="card-body">
+                    <!-- Liste des réponses existantes -->
+                    <h6 class="text-muted mb-3">Réponses possibles :</h6>
+                    @if (q.Answers != null && q.Answers.Any())
+                    {
+                        <ul class="list-group mb-4">
+                            @foreach (var answer in q.Answers)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span>➡️ @answer.Text</span>
+                                        @if (answer.NextQuestionId != null)
+                                        {
+                                            <span class="badge bg-info ms-2">Mène à la Q#@answer.NextQuestionId</span>
+                                        }
+                                        else if (answer.ProcedureId != null)
+                                        {
+                                            <span class="badge bg-success ms-2">Mène à la solution #@answer.ProcedureId</span>
+                                        }
+                                    </div>
+                                    <!-- Bouton croix ouvrant la modale de réponse -->
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OpenDeleteAnswerModal(answer)">×</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted fst-italic">Aucune réponse configurée pour cette question.</p>
+                    }
+
+                    <!-- Formulaire d'ajout de réponse pour cette question -->
+                    <div class="card bg-light p-3">
+                        <h6 class="mb-3">Ajouter une réponse à cette question :</h6>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" placeholder="Texte de la réponse..." @bind="newAnswerTexts[q.Id]" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <select class="form-select" @bind="newAnswerNextQuestionIds[q.Id]">
+                                    <option value="">-- Vers une autre question --</option>
+                                    @foreach (var otherQ in questions.Where(x => x.Id != q.Id))
+                                    {
+                                        <option value="@otherQ.Id">Q#@otherQ.Id : @otherQ.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <select class="form-select" @bind="newAnswerProcedureIds[q.Id]">
+                                    <option value="">-- Ou vers une solution finale --</option>
+                                    @if (procedures != null)
+                                    {
+                                        @foreach (var proc in procedures)
+                                        {
+                                            <option value="@proc.Id">Solution #@proc.Id : @proc.Title</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-2" @onclick="() => AddAnswer(q.Id)">Ajouter cette réponse</button>
+
+                        <!-- Affichage de l'erreur spécifique à cette question -->
+                        @if (questionErrorMessages.TryGetValue(q.Id, out var errorMsg) && !string.IsNullOrEmpty(errorMsg))
+                        {
+                            <div class="alert alert-danger mt-2 mb-0 p-2">
+                                <small>@errorMsg</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- BOÎTE DE DIALOGUE MODALE : SUPPRESSION DE QUESTION -->
+@if (showQuestionDeleteModal && questionToDelete != null)
+{
+    <div class="modal show fade d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">⚠️ Confirmation de suppression</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteQuestionModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir supprimer la question <strong>"ID @questionToDelete.Id : @questionToDelete.Text"</strong> ?</p>
+                    <p class="text-muted small mb-0">Cette action supprimera également toutes les réponses qui y sont rattachées. Elle est irréversible.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteQuestionModal">Annuler</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteQuestion">Oui, supprimer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- BOÎTE DE DIALOGUE MODALE : SUPPRESSION DE RÉPONSE -->
+@if (showAnswerDeleteModal && answerToDelete != null)
+{
+    <div class="modal show fade d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">⚠️ Confirmation de suppression</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteAnswerModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir supprimer la réponse <strong>"@answerToDelete.Text"</strong> ?</p>
+                    <p class="text-muted small mb-0">Cette action est irréversible.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteAnswerModal">Annuler</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAnswer">Oui, supprimer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Question>? questions;
+    private List<Procedure>? procedures;
+
+    private string newQuestionText = string.Empty;
+
+    private Dictionary<int, string> newAnswerTexts = new();
+    private Dictionary<int, int?> newAnswerNextQuestionIds = new();
+    private Dictionary<int, int?> newAnswerProcedureIds = new();
+    private Dictionary<int, string> questionErrorMessages = new();
+
+    // Gestion du Modal de Question
+    private bool showQuestionDeleteModal = false;
+    private Question? questionToDelete = null;
+
+    // Gestion du Modal de Réponse
+    private bool showAnswerDeleteModal = false;
+    private Answer? answerToDelete = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAdmin && !Auth.IsTechnician)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        questions = await DbContext.Questions
+            .Include(q => q.Answers)
+            .ToListAsync();
+
+        procedures = await DbContext.Procedures.ToListAsync();
+
+        foreach (var q in questions)
+        {
+            if (!newAnswerTexts.ContainsKey(q.Id)) 
+                newAnswerTexts[q.Id] = string.Empty;
+
+            if (!newAnswerNextQuestionIds.ContainsKey(q.Id)) 
+                newAnswerNextQuestionIds[q.Id] = null;
+
+            if (!newAnswerProcedureIds.ContainsKey(q.Id)) 
+                newAnswerProcedureIds[q.Id] = null;
+
+            if (!questionErrorMessages.ContainsKey(q.Id))
+                questionErrorMessages[q.Id] = string.Empty;
+        }
+    }
+
+    private async Task CreateQuestion()
+    {
+        if (!string.IsNullOrWhiteSpace(newQuestionText))
+        {
+            var q = new Question { Text = newQuestionText };
+            DbContext.Questions.Add(q);
+            await DbContext.SaveChangesAsync();
+
+            newQuestionText = string.Empty;
+            await LoadData();
+        }
+    }
+
+    private void OpenDeleteQuestionModal(Question q)
+    {
+        questionToDelete = q;
+        showQuestionDeleteModal = true;
+    }
+
+    private void CloseDeleteQuestionModal()
+    {
+        questionToDelete = null;
+        showQuestionDeleteModal = false;
+    }
+
+    private async Task ConfirmDeleteQuestion()
+    {
+        if (questionToDelete != null)
+        {
+            var q = await DbContext.Questions.Include(x => x.Answers).FirstOrDefaultAsync(x => x.Id == questionToDelete.Id);
+            if (q != null)
+            {
+                DbContext.Questions.Remove(q);
+                await DbContext.SaveChangesAsync();
+            }
+            CloseDeleteQuestionModal();
+            await LoadData();
+        }
+    }
+
+    private void OpenDeleteAnswerModal(Answer ans)
+    {
+        answerToDelete = ans;
+        showAnswerDeleteModal = true;
+    }
+
+    private void CloseDeleteAnswerModal()
+    {
+        answerToDelete = null;
+        showAnswerDeleteModal = false;
+    }
+
+    private async Task ConfirmDeleteAnswer()
+    {
+        if (answerToDelete != null)
+        {
+            var answer = await DbContext.Answers.FindAsync(answerToDelete.Id);
+            if (answer != null)
+            {
+                DbContext.Answers.Remove(answer);
+                await DbContext.SaveChangesAsync();
+            }
+            CloseDeleteAnswerModal();
+            await LoadData();
+        }
+    }
+
+    private async Task AddAnswer(int questionId)
+    {
+        // Réinitialise l'erreur précédente pour cette question
+        questionErrorMessages[questionId] = string.Empty;
+
+        newAnswerTexts.TryGetValue(questionId, out var text);
+
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            newAnswerNextQuestionIds.TryGetValue(questionId, out var nextQId);
+            newAnswerProcedureIds.TryGetValue(questionId, out var procId);
+
+            // Vérification : Empêche de renseigner les deux choix en même temps
+            if (nextQId > 0 && procId > 0)
+            {
+                questionErrorMessages[questionId] = "⚠️ Vous devez renseigner soit une autre question, soit une solution finale, mais pas les deux !";
+                return;
+            }
+
+            var answer = new Answer
+            {
+                Text = text,
+                QuestionId = questionId,
+                NextQuestionId = nextQId > 0 ? nextQId : null,
+                ProcedureId = procId > 0 ? procId : null
+            };
+
+            DbContext.Answers.Add(answer);
+            await DbContext.SaveChangesAsync();
+
+            newAnswerTexts[questionId] = string.Empty;
+            newAnswerNextQuestionIds[questionId] = null;
+            newAnswerProcedureIds[questionId] = null;
+
+            await LoadData();
+        }
+        else
+        {
+            questionErrorMessages[questionId] = "⚠️ Le texte de la réponse ne peut pas être vide.";
+        }
+    }
+}

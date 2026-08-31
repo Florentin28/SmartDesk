@@ -1,7 +1,5 @@
 @page "/akinator"
 @inject SmartDesk.Data.AppDbContext DbContext
-
-@* pour rediriger l'utilisateur vers les tickets et préremplir le ticket *@
 @inject NavigationManager NavManager 
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
@@ -65,24 +63,17 @@ else if (procedures != null && !procedures.Any())
             Cette procédure ne correspond pas à mon problème
         </button>
     </div>
-
-    
 }
-
 else if (question != null)
 {
+    <h3 class="fw-bold">Question : @question.Text</h3>
 
-<h3 class="fw-bold">Question : @question.Text</h3>
-
-
-@foreach (var answer in question.Answers)
-{
-    <button class="btn btn-primary m-2" @onclick="@(() => OnAnswerClick(answer))">
-        
-        @answer.Text
-    </button>
-
-}
+    @foreach (var answer in question.Answers)
+    {
+        <button class="btn btn-primary m-2" @onclick="@(() => OnAnswerClick(answer))">
+            @answer.Text
+        </button>
+    }
 }
 
 
@@ -91,69 +82,66 @@ else if (question != null)
 @code {
 
 private Question? question;
-
 private Procedure? procedure;
 
 private string? search;
 private List<Procedure>? procedures = null;
 
-private bool showMissingForm = false; // pour afficher le formulaire de demande de procédure manquante
-private bool missingFormSubmitted = false; // pour afficher le message de succès après soumission du formulaire
-private string missingDescription = string.Empty; // pour stocker la description de la procédure manquante que l'utilisateur va taper
+private bool showMissingForm = false; 
+private bool missingFormSubmitted = false; 
+private string missingDescription = string.Empty; 
 
-protected override async Task OnInitializedAsync(){
-    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
+protected override async Task OnInitializedAsync()
+{
+    question = await DbContext.Questions
+        .Include(q => q.Answers)
+        .OrderBy(q => q.Id)
+        .FirstOrDefaultAsync();
 }
 
 
-private async Task OnAnswerClick(Answer selectedAnswer){
+private async Task OnAnswerClick(Answer selectedAnswer)
+{
     if (selectedAnswer.NextQuestionId != null)
     {
-        // Si la réponse sélectionnée mène à une autre question, on charge cette question
         question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == selectedAnswer.NextQuestionId);
     }
     else if (selectedAnswer.ProcedureId != null)
     {
-        // Si la réponse sélectionnée mène à une procédure, on charge cette procédure
-        procedure = await DbContext.Procedures.FirstOrDefaultAsync(p => p.Id == selectedAnswer.ProcedureId); // stocke la procédure sélectionnée
-        question = null; // retire la question pour afficher la procédure
+        procedure = await DbContext.Procedures.FirstOrDefaultAsync(p => p.Id == selectedAnswer.ProcedureId);
+        question = null; 
     }
-    
 }
 
 
-private async Task ProcedureResolved ()
+private async Task ProcedureResolved()
 {
     if (procedure != null)
     {
-    procedure.SuccessCount++;
-    await DbContext.SaveChangesAsync();
-    procedure = null; // retire la procédure 
-    question = await DbContext.Questions.Include(q => q.Answers).FirstOrDefaultAsync(q => q.Id == 1);
-
+        procedure.SuccessCount++;
+        await DbContext.SaveChangesAsync();
+        procedure = null; 
+        
+        question = await DbContext.Questions
+            .Include(q => q.Answers)
+            .OrderBy(q => q.Id)
+            .FirstOrDefaultAsync();
     }
 }
 
-private void ProcedurenotResolved (){
-
+private void ProcedurenotResolved()
+{
     if (procedure != null)
     {
-        // On redirige vers la page /tickets en attachant l'ID de la procédure dans l'URL
         NavManager.NavigateTo($"/tickets?procedureId={procedure.Id}");
     }
-
 }
 
-private void ProcedureNotRelevant() // Si l'utilisateur indique que la procédure n'est pas pertinente, on réinitialise l'état
+private void ProcedureNotRelevant() 
 {
-    // On vide la liste des procédures 
     procedures = new List<Procedure>(); 
-    
-    // On indique qu'on veut afficher le formulaire de "Missing Procedure"
     showMissingForm = true;
     missingFormSubmitted = false;
-    
-    // On efface la procédure actuellement sélectionnée pour nettoyer l'écran
     procedure = null; 
 }
 
@@ -174,13 +162,13 @@ private async Task SearchProcedures()
 
 private void SelectProcedureFromSearch(Procedure selectedProc)
 {
-    procedure = selectedProc; // écrase la procédure actuelle avec celle sélectionnée
-    question = null; // retire la question pour afficher la procédure
-    procedures = null; // vide la liste des procédures après la sélection
-    search = ""; // vide le champ de recherche après la sélection
+    procedure = selectedProc; 
+    question = null; 
+    procedures = null; 
+    search = ""; 
 }
 
-private async Task HandleKeyPress(KeyboardEventArgs e) // Gère l'événement de la touche "Entrée" pour déclencher la recherche
+private async Task HandleKeyPress(KeyboardEventArgs e) 
 {
     if (e.Key == "Enter")
     {
@@ -203,7 +191,6 @@ private async Task SubmitMissingProcedure()
         DbContext.MissingProcedures.Add(newMissingProc);
         await DbContext.SaveChangesAsync();
 
-        // On affiche le message de succès et on vide le formulaire
         missingFormSubmitted = true;
         showMissingForm = false;
         missingDescription = string.Empty;
