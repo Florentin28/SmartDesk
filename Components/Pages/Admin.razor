@@ -1,4 +1,5 @@
 @page "/admin"
+@attribute [Authorize(Roles = "Admin")] // autorise l'accès à cette page si l'utilisateur est un administrateur
 @rendermode InteractiveServer // rend la page interactive
 
 
@@ -8,7 +9,6 @@
 @inject UserManager<IdentityUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject SmartDesk.Services.AuthService Auth
-@inject NavigationManager Navigation
 
 
 @inject AppDbContext Context 
@@ -135,13 +135,7 @@
     protected override void  OnInitialized(){
         users = UserManager.Users.ToList(); // On récupère tous les utilisateurs et on les stocke dans la variable users
 
-         // Vérification de l'état de connexion
-        if (!Auth.IsAdmin)
-        {
-            // Expulsion immédiate vers la page de connexion
-            Navigation.NavigateTo("/");
-            return;
-        }
+
 
         // Chargement des users depuis la base de données
         users = UserManager.Users.ToList(); 

@@ -1,4 +1,5 @@
 @page "/tickets" 
+@attribute [Authorize]
 @rendermode InteractiveServer // rend la page interactive
 @implements IDisposable // Permet de libérer les ressources du timer quand on quitte la page
 
@@ -22,17 +23,8 @@
 
 <div class="container mt-4">
     
-     @* Message si l'utilisateur n'est pas connecté *@
-    @if (!Auth.IsLoggedIn)
-    {
-        <div class="alert alert-danger text-center">
-            <h5><i class="bi bi-exclamation-triangle-fill"></i> Accès refusé</h5>
-            <p>Vous devez être connecté pour voir cette page.</p>
-            <a href="/" class="btn btn-danger">Aller à la page de connexion</a>
-        </div>
-    }
-    else
-    {
+    
+    
         <div class="row g-4">
             @* FORMULAIRE DE CRÉATION de ticket (EMPLOYÉ) *@
             @if (!Auth.IsTechnician && !Auth.IsAdmin) // Vérifie que l'utilisateur n'est pas un technicien ou un admin pour afficher le formulaire de création de ticket
@@ -179,7 +171,7 @@
                 </div>
             </div>
         </div>
-    }
+    
 
 @if (showConfirmModal && ticketToResolve != null)
 {
@@ -219,43 +211,52 @@
     private bool showConfirmModal = false;
     private Ticket? ticketToResolve;
 
-    
+    [CascadingParameter]
+private Task<AuthenticationState>? AuthStateTask { get; set; }
 
     
  
     // Charge les tickets de la BDD sur la page 
     protected override async Task OnInitializedAsync() 
-    { 
-        // Vérification de l'état de connexion
-        if (!Auth.IsLoggedIn)
+{ 
+    // Synchronisation de l'utilisateur connecté
+    if (AuthStateTask != null)
+    {
+        var authState = await AuthStateTask;
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
         {
-            // Expulsion immédiate vers la page de connexion
-            Navigation.NavigateTo("/");
-            return;
+            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value 
+                        ?? user.Identity.Name 
+                        ?? "";
+
+            Auth.SyncRoles(
+                email: email,
+                isAdmin: user.IsInRole("Admin") || email.ToLower().StartsWith("admin@"),
+                isTechnician: user.IsInRole("Technician") || email.ToLower().StartsWith("tech@")
+            );
         }
-
-            // Si l'URL contient un ID de procédure...
-        if (ProcedureId.HasValue)
-        {
-            // 1. On va chercher la procédure en base de données
-            var failedProcedure = await DbContext.Procedures.FindAsync(ProcedureId.Value);
-            
-            if (failedProcedure != null)
-            {
-                // 2. On pré-remplit l'objet Ticket (adapte 'newTicket' avec le nom de TA variable de création)
-                newTitle = $"Suite à la procédure : {failedProcedure.Title}";
-                newDescription = $"J'ai bien tenté d'appliquer les étapes suivantes sans succès :\n\n{failedProcedure.Content}";
-                            
-            }
-        }
-
-        // Chargement des tickets depuis la base de données
-        await LoadTickets(); 
-
-        timer = new Timer(60000); // Timer qui se déclenche toutes les minutes (60000 ms)
-        timer.Elapsed += (sender, e) => InvokeAsync(StateHasChanged); // Déclenche un rafraîchissement de l'interface utilisateur
-        timer.Start(); // Démarre le timer
     }
+
+    // Pré-remplissage si procédure demandée
+    if (ProcedureId.HasValue)
+    {
+        var failedProcedure = await DbContext.Procedures.FindAsync(ProcedureId.Value);
+        if (failedProcedure != null)
+        {
+            newTitle = $"Suite à la procédure : {failedProcedure.Title}";
+            newDescription = $"J'ai bien tenté d'appliquer les étapes suivantes sans succès :\n\n{failedProcedure.Content}";
+        }
+    }
+
+    // Chargement des tickets
+    await LoadTickets(); 
+
+    timer = new Timer(60000);
+    timer.Elapsed += (sender, e) => InvokeAsync(StateHasChanged);
+    timer.Start();
+}
 
     private async Task LoadTickets()
     {

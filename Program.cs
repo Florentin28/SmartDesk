@@ -7,8 +7,7 @@ using SmartDesk.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Enregistre le service d'authentification pour gérer la session et la connexion des utilisateurs
-builder.Services.AddSingleton<SmartDesk.Services.AuthService>();
+builder.Services.AddScoped<SmartDesk.Services.AuthService>();
 
 
 
@@ -28,7 +27,22 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
         options.Password.RequiredLength = 6; // longueur minimale du MDP
 })
 .AddRoles<IdentityRole>() // différencier technicien de employé
+.AddSignInManager() // pour l'authentification
 .AddEntityFrameworkStores<AppDbContext>(); // relier Identity au fichier SQlite
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+})
+.AddIdentityCookies();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/"; // Redirige vers l'accueil pour se connecter
+    options.AccessDeniedPath = "/"; // Évite le 404 en cas de droits insuffisants
+});
+
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<EmailService>(); // pour l'envoi de mail
 
@@ -61,12 +75,41 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+
+app.MapPost("/login", async (
+    HttpContext context,
+    [Microsoft.AspNetCore.Mvc.FromForm] string email,
+    [Microsoft.AspNetCore.Mvc.FromForm] string password,
+    SignInManager<IdentityUser> signInManager,
+    UserManager<IdentityUser> userManager) =>
+{
+    var user = await userManager.FindByEmailAsync(email);
+    if (user != null)
+    {
+        var result = await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            return Results.LocalRedirect("/");
+        }
+    }
+
+    return Results.LocalRedirect("/?error=1");
+});
+
+app.MapPost("/logout", async (SignInManager<IdentityUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.LocalRedirect("/");
+});
 
 app.Run();
 

@@ -47,5 +47,12 @@ namespace SmartDesk.Services
             IsTechnician = false;
             IsAdmin = false;
         }
+        public void SyncRoles(string email, bool isAdmin, bool isTechnician)
+{
+    CurrentEmail = email;
+    IsLoggedIn = true;
+    IsAdmin = isAdmin;
+    IsTechnician = isTechnician;
+}
     }
 }
