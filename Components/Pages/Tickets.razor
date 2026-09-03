@@ -284,50 +284,105 @@ private Task<AuthenticationState>? AuthStateTask { get; set; }
     }
 
     // Créer un nouveau ticket 
-    private async Task CreateTicket()
+    private string? uploadErrorMessage; // Variable pour afficher une erreur dans l'UI si besoin
+
+private async Task CreateTicket()
+{
+    if (string.IsNullOrWhiteSpace(newTitle)) return;
+
+    string? imagePath = null;
+    uploadErrorMessage = null;
+
+    if (selectedFile != null)
     {
-        if (string.IsNullOrWhiteSpace(newTitle)) return; @* Vérifie que le titre n'est pas vide *@
+        const long maxFileSize = 1024 * 1024 * 5; // Limite stricte de 5 Mo
 
-        // On prépare une variable vide pour le chemin
-        string? imagePath = null; 
-
-        // Si l'utilisateur a bien sélectionné un fichier...
-        if (selectedFile != null)
+        // 1. Vérification de la taille du fichier
+        if (selectedFile.Size > maxFileSize)
         {
-        // On génère un nom unique (ex: 550e8400-e29b.png)
-        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(selectedFile.Name);
-        
-        // On trouve le chemin du dossier "uploads" dans wwwroot
+            uploadErrorMessage = "Le fichier dépasse la limite autorisée de 5 Mo.";
+            return;
+        }
+
+        // 2. Vérification de l'extension (Liste blanche stricte)
+        var extension = Path.GetExtension(selectedFile.Name).ToLowerInvariant();
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            uploadErrorMessage = "Format de fichier non autorisé. Seuls JPG et PNG sont acceptés.";
+            return;
+        }
+
+        // 3. Vérification des Magic Numbers (Signature binaire réelle)
+        // Lit les 8 premiers octets du fichier en mémoire
+        using var memoryStream = new MemoryStream();
+        await selectedFile.OpenReadStream(maxFileSize).CopyToAsync(memoryStream);
+        var fileBytes = memoryStream.ToArray();
+
+        if (!IsValidImageHeader(fileBytes, extension))
+        {
+            uploadErrorMessage = "Le contenu du fichier est invalide ou corrompu (signature binaire non conforme).";
+            return;
+        }
+
+        // 4. Stockage physique sécurisé sous GUID
+        var fileName = $"{Guid.NewGuid()}{extension}";
         var folderPath = Path.Combine(Env.WebRootPath, "uploads");
-        Directory.CreateDirectory(folderPath); // Crée le dossier s'il n'existe pas encore
-        
-        // On combine le dossier et le nom du fichier
+        Directory.CreateDirectory(folderPath);
+
         var fullPath = Path.Combine(folderPath, fileName);
+        await File.WriteAllBytesAsync(fullPath, fileBytes);
 
-        // On copie physiquement le fichier sur le disque dur (avec une limite de 5 Mo)
-        using var stream = new FileStream(fullPath, FileMode.Create);
-        await selectedFile.OpenReadStream(1024 * 1024 * 5).CopyToAsync(stream);
-
-        // On garde le chemin "web" pour la base de données
-        imagePath = "/uploads/" + fileName;
-         }
-
-        var ticket = new Ticket @* Prépare le tickets avec les données saisies par l'utilisateur *@
-        { 
-            Title = newTitle, 
-            Description = newDescription,
-            SubmittedBy = Auth.CurrentEmail,
-            ScreenshotPath = imagePath
-        };
-        
-        DbContext.Tickets.Add(ticket); @* Insère le ticket dans la BDD *@
-        await DbContext.SaveChangesAsync(); 
-
-        newTitle = string.Empty; @* Réinitialise les champs *@
-        newDescription = string.Empty;
-        selectedFile = null;
-        await LoadTickets(); @* Recharge la liste des tickets *@
+        imagePath = $"/uploads/{fileName}";
     }
+
+    var ticket = new Ticket
+    {
+        Title = newTitle,
+        Description = newDescription,
+        SubmittedBy = Auth.CurrentEmail,
+        ScreenshotPath = imagePath
+    };
+
+    DbContext.Tickets.Add(ticket);
+    await DbContext.SaveChangesAsync();
+
+    newTitle = string.Empty;
+    newDescription = string.Empty;
+    selectedFile = null;
+    uploadErrorMessage = null;
+    await LoadTickets();
+}
+
+// Fonction de validation des en-têtes binaires
+private bool IsValidImageHeader(byte[] bytes, string extension)
+{
+    if (bytes.Length < 8) return false;
+
+    // Signature PNG : 89 50 4E 47 0D 0A 1A 0A
+    if (extension == ".png")
+    {
+        return bytes[0] == 0x89 &&
+               bytes[1] == 0x50 &&
+               bytes[2] == 0x4E &&
+               bytes[3] == 0x47 &&
+               bytes[4] == 0x0D &&
+               bytes[5] == 0x0A &&
+               bytes[6] == 0x1A &&
+               bytes[7] == 0x0A;
+    }
+
+    // Signature JPEG/JPG : FF D8 FF
+    if (extension == ".jpg" || extension == ".jpeg")
+    {
+        return bytes[0] == 0xFF &&
+               bytes[1] == 0xD8 &&
+               bytes[2] == 0xFF;
+    }
+
+    return false;
+}   
 
     // Mettre à jour le statut d'un ticket 
 private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)

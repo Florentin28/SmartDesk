@@ -25,7 +25,15 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
         options.Password.RequireLowercase = true; // au moins une lettre minuscule dans le MDP
         options.Password.RequireUppercase = true; // au moins une lettre majuscule dans le MDP
         options.Password.RequireNonAlphanumeric = true; // au moins un caractère spécial dans le MDP
-        options.Password.RequiredLength = 6; // longueur minimale du MDP
+        options.Password.RequiredLength = 12; // longueur minimale du MDP
+        options.Password.RequiredUniqueChars = 3; // nombre minimal de caractères différents dans le MDP
+        // --- Verrouillage du Compte (Lockout) ---
+        // Active le verrouillage pour les nouveaux utilisateurs
+        options.Lockout.AllowedForNewUsers = true;
+        // Nombre maximum d'échecs avant blocage (ici 5 tentatives ratées)
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        // Durée du blocage du compte (ici 15 minutes)
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
 .AddRoles<IdentityRole>() // différencier technicien de employé
 .AddSignInManager() // pour l'authentification
@@ -95,6 +103,33 @@ if (!app.Environment.IsDevelopment())
 }
 // Redirige vers la page d'erreur si la page demandée n'existe pas
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+
+// --- Middleware des En-têtes de Sécurité HTTP (Security Headers) ---
+app.Use(async (context, next) =>
+{
+    // Empêche le reniflage de type MIME
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+
+    // Interdit l'affichage dans des frames/iframes (anti-Clickjacking)
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+
+    // Politique de référent : ne transmet l'origine que sur des liaisons HTTPS sécurisées
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    // Content Security Policy adaptée à Blazor Server (SignalR, styles et scripts nécessaires)
+    // Note : 'unsafe-inline' et 'unsafe-eval' sont requis par le moteur de rendu Blazor WebAssembly / Server refresh
+    context.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " + // Règle de repli : restreint par défaut toutes les ressources non spécifiées au domaine local
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // Scripts du serveur autorisés (mots-clés unsafe nécessaires au moteur Blazor/SignalR)
+        "style-src 'self' 'unsafe-inline'; " + // Feuilles de style locales et balises style en ligne autorisées
+        "img-src 'self' data:; " + // Images locales (/uploads) et données encodées en base64 (icônes SVG) autorisées
+        "connect-src 'self' wss: ws:; " + // Connexions réseau (fetch) et flux WebSockets requis pour le circuit temps réel Blazor Server
+        "font-src 'self'; " + // Polices typographiques strictement restreintes au serveur local
+        "frame-ancestors 'none';"); // Interdit catégoriquement d'embarquer l'application dans une iframe (anti-Clickjacking)
+
+    await next();
+});
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
