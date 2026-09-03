@@ -38,8 +38,10 @@ builder.Services.AddAuthentication(options =>
 .AddIdentityCookies();
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.LoginPath = "/"; // Redirige vers l'accueil pour se connecter
-    options.AccessDeniedPath = "/"; // Évite le 404 en cas de droits insuffisants
+    options.LoginPath = "/";
+    options.AccessDeniedPath = "/";
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Impose le flag Secure
+    options.Cookie.HttpOnly = true;                          // Bloque l'accès JavaScript
 });
 
 builder.Services.AddAuthorization();
