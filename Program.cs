@@ -3,6 +3,7 @@ using SmartDesk.Components; // importe les Pages et les layouts
 using Microsoft.AspNetCore.Identity; // Pour IdentityUser et IdentityRole
 using SmartDesk.Data;                // Pour AppDbContext
 using SmartDesk.Services;
+using Microsoft.AspNetCore.RateLimiting; // pour limiter le nombre de requêtes par utilisateur
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,25 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<EmailService>(); // pour l'envoi de mail
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        // On redirige vers l'accueil avec un paramètre d'erreur dédié
+        context.HttpContext.Response.Redirect("/?error=rate-limit");
+        await Task.CompletedTask;
+    };
+    options.AddFixedWindowLimiter("login-policy", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+});
+
+
 var app = builder.Build();
 
 // Ensure the database is created
@@ -76,6 +96,7 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.UseAntiforgery();
@@ -103,7 +124,8 @@ app.MapPost("/login", async (
     }
 
     return Results.LocalRedirect("/?error=1");
-});
+})
+.RequireRateLimiting("login-policy"); // 🛡️ Protection anti-brute-force
 
 app.MapPost("/logout", async (SignInManager<IdentityUser> signInManager) =>
 {

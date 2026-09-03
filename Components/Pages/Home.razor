@@ -49,10 +49,20 @@
             </div>
         </div>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger p-2 small">@errorMessage</div>
-        }
+        @if (Error == "rate-limit")
+{
+    <div class="alert alert-warning text-center fw-semibold" role="alert">
+        <i class="bi bi-shield-exclamation me-2"></i>
+        Trop de tentatives infructueuses. Veuillez patienter une minute avant de réessayer.
+    </div>
+}
+else if (Error == "1" || !string.IsNullOrEmpty(Error))
+{
+    <div class="alert alert-danger text-center fw-semibold" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Identifiants incorrects. Veuillez réessayer.
+    </div>
+}
 
         <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold mt-3">
             Se connecter <i class="bi bi-box-arrow-in-right"></i>
@@ -284,13 +294,18 @@ private Task<AuthenticationState>? AuthStateTask { get; set; }
 [SupplyParameterFromQuery]
 private string? Error { get; set; }
 
+
     // --- 4. INITIALISATION DU COMPOSANT ---
     protected override async Task OnInitializedAsync()
 {
     if (Error == "1")
-    {
-        errorMessage = "Identifiants incorrects.";
-    }
+{
+    errorMessage = "Identifiants incorrects.";
+}
+else if (Error == "rate-limit")
+{
+    errorMessage = "Trop de tentatives infructueuses. Veuillez patienter une minute.";
+}
 
     if (AuthStateTask != null)
     {

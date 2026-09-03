@@ -332,6 +332,7 @@ private Task<AuthenticationState>? AuthStateTask { get; set; }
     // Mettre à jour le statut d'un ticket 
 private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
 {
+    if (!Auth.IsTechnician && !Auth.IsAdmin) return;
     if (string.IsNullOrEmpty(nextStatus)) return;
 
     if (nextStatus == "Resolved")
@@ -354,6 +355,7 @@ private async Task UpdateTicketStatus(Ticket ticket, string? nextStatus)
     // Met à jour la priorité du ticket 
     private async Task UpdateTicketPriority(Ticket ticket, string? nextPriority)
     {
+        if (!Auth.IsTechnician && !Auth.IsAdmin) return;
         if (string.IsNullOrEmpty(nextPriority)) return;
         ticket.Priority = nextPriority;
         await DbContext.SaveChangesAsync();
@@ -430,6 +432,7 @@ private void CancelResolve()
 
 private async Task ConfirmResolveTicket()
 {
+    if (!Auth.IsTechnician && !Auth.IsAdmin) return;
     if (ticketToResolve == null) return;
 
     // 1. Mise à jour du statut en base de données
