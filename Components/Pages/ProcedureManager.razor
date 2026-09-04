@@ -105,11 +105,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAdmin && !Auth.IsTechnician)
-        {
-            Navigation.NavigateTo("/");
-            return;
-        }
+ 
 
         await LoadProcedures();
     }

@@ -178,11 +178,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAdmin && !Auth.IsTechnician)
-        {
-            Navigation.NavigateTo("/");
-            return;
-        }
+
         await LoadData();
     }
 
@@ -279,7 +275,6 @@
 
     private async Task AddAnswer(int questionId)
     {
-        // Réinitialise l'erreur précédente pour cette question
         questionErrorMessages[questionId] = string.Empty;
 
         newAnswerTexts.TryGetValue(questionId, out var text);
@@ -289,11 +284,22 @@
             newAnswerNextQuestionIds.TryGetValue(questionId, out var nextQId);
             newAnswerProcedureIds.TryGetValue(questionId, out var procId);
 
-            // Vérification : Empêche de renseigner les deux choix en même temps
+            // 1. Vérification : choix mutuellement exclusifs
             if (nextQId > 0 && procId > 0)
             {
                 questionErrorMessages[questionId] = "⚠️ Vous devez renseigner soit une autre question, soit une solution finale, mais pas les deux !";
                 return;
+            }
+
+            // 2. Détection de boucle infinie (Cycle Detection)
+            if (nextQId > 0)
+            {
+                // Vérifie si la question cible mène déjà (directement ou indirectement) à la question actuelle
+                if (CausesCycle(startQuestionId: nextQId.Value, targetQuestionId: questionId))
+                {
+                    questionErrorMessages[questionId] = $"⚠️ Impossible de relier à la Q#{nextQId.Value} : cela créerait une boucle infinie dans l'arbre décisionnel.";
+                    return;
+                }
             }
 
             var answer = new Answer
@@ -317,5 +323,39 @@
         {
             questionErrorMessages[questionId] = "⚠️ Le texte de la réponse ne peut pas être vide.";
         }
+    }
+
+    // Algorithme de détection de cycle par parcours en profondeur (DFS)
+    private bool CausesCycle(int startQuestionId, int targetQuestionId)
+    {
+        if (startQuestionId == targetQuestionId) 
+            return true;
+
+        var visited = new HashSet<int>();
+        return HasPath(startQuestionId, targetQuestionId, visited);
+    }
+
+    private bool HasPath(int currentQuestionId, int targetQuestionId, HashSet<int> visited)
+    {
+        if (currentQuestionId == targetQuestionId) 
+            return true;
+
+        if (!visited.Add(currentQuestionId)) 
+            return false; // Évite d'explorer deux fois le même nœud en mémoire
+
+        var currentQuestion = questions?.FirstOrDefault(q => q.Id == currentQuestionId);
+        if (currentQuestion?.Answers == null) 
+            return false;
+
+        foreach (var answer in currentQuestion.Answers)
+        {
+            if (answer.NextQuestionId.HasValue)
+            {
+                if (HasPath(answer.NextQuestionId.Value, targetQuestionId, visited))
+                    return true;
+            }
+        }
+
+        return false;
     }
 }
